@@ -19,3 +19,6 @@ pgvector>=0.3.6
 
 # RAG Embeddings (BGE-small 384-dim)
 sentence-transformers>=3.0.0
+langchain-core>=0.3.0
+langchain-groq>=0.2.0
+langgraph>=0.2.0

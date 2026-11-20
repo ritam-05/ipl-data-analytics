@@ -1,0 +1,104 @@
+2026-11-20 23:57:32,411 | INFO | === PHASE 6: LANGGRAPH AGENT VERIFICATION ===
+2026-11-20 23:57:32,412 | INFO | 
+--- TEST 1: How is bowling economy rate calculated in IPL cricket? ---
+2026-11-20 23:57:33,323 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:33,338 | INFO | No device provided, using cpu
+2026-11-20 23:57:33,872 | INFO | HTTP Request: GET https://huggingface.co/api/models/BAAI/bge-small-en-v1.5 "HTTP/1.1 200 OK"
+2026-11-20 23:57:33,941 | INFO | Loading SentenceTransformer model from BAAI/bge-small-en-v1.5.
+2026-11-20 23:57:34,521 | INFO | HTTP Request: GET https://huggingface.co/api/models/BAAI/bge-small-en-v1.5/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-11-20 23:57:34,805 | INFO | HTTP Request: GET https://huggingface.co/api/models/BAAI/bge-small-en-v1.5/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-11-20 23:57:35,137 | INFO | HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/2_Normalize/config.json "HTTP/1.1 404 Not Found"
+2026-11-20 23:57:35,137 | WARNING | Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-11-20 23:57:38,897 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:38,897 | INFO | Intent: rag
+2026-11-20 23:57:38,897 | INFO | SQL Query: None
+2026-11-20 23:57:38,897 | INFO | SQL Rows Returned: 0 | Error: None
+2026-11-20 23:57:38,897 | INFO | Chart Generated: False
+2026-11-20 23:57:38,897 | INFO | Answer:
+**Bowling Economy Rate** in the IPL is measured as the average number of runs a bowler gives away per over (6 legal deliveries).
+
+\[
+\text{Economy Rate} = \left(\frac{\text{Runs conceded}}{\text{Legal balls bowled}}\right) \times 6
+\]
+
+- **Runs conceded** = runs off the bat + runs from wides + runs from no‑balls.  
+  (It does **not** include byes, leg‑byes, or penalty runs.)  
+- **Legal balls bowled** = the count of deliveries that are not wides or no‑balls.
+
+Thus, the formula converts the runs given per legal ball into runs per six‑ball over, giving the bowler’s economy rate.
+
+2026-11-20 23:57:38,897 | INFO | 
+--- TEST 2: Who are the top 5 all-time run scorers in IPL history? ---
+2026-11-20 23:57:39,446 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:40,316 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:41,586 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:41,588 | INFO | Intent: sql
+2026-11-20 23:57:41,588 | INFO | SQL Query: SELECT player_name, SUM(runs) AS total_runs
+FROM fact_player_batting_season
+GROUP BY player_name
+ORDER BY total_runs DESC
+LIMIT 5
+2026-11-20 23:57:41,588 | INFO | SQL Rows Returned: 5 | Error: None
+2026-11-20 23:57:41,588 | INFO | Chart Generated: True
+2026-11-20 23:57:41,588 | INFO | Answer:
+**Top 5 all‑time IPL run‑scorers (career totals)**  
+
+| Rank | Player | Total IPL Runs |
+|------|--------|----------------|
+| 1 | V Kohli | 9,336 |
+| 2 | R G Sharma | 7,329 |
+| 3 | S Dhawan | 6,769 |
+| 4 | D A Warner | 6,565 |
+| 5 | K L Rahul | 5,815 |
+
+These figures come directly from the aggregated season‑by‑season batting data. Notably, **Virat Kohli** (the all‑time leader) and **KL Rahul** have both been key players for Royal Challengers Bengaluru, aligning with your favourite team.
+
+2026-11-20 23:57:41,588 | INFO | 
+--- TEST 3: Show the average first innings score by season from 2018 to 2026 and explain the trend. ---
+2026-11-20 23:57:42,108 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:43,458 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:45,718 | INFO | HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-11-20 23:57:45,718 | INFO | Intent: hybrid
+2026-11-20 23:57:45,718 | INFO | SQL Query: SELECT season,
+       ROUND(AVG(innings_1_runs)::numeric, 2) AS avg_first_innings_score
+FROM public.fact_matches
+WHERE season BETWEEN 2018 AND 2026
+  AND innings_1_runs IS NOT NULL
+GROUP BY season
+ORDER BY season
+LIMIT 50
+2026-11-20 23:57:45,718 | INFO | SQL Rows Returned: 9 | Error: None
+2026-11-20 23:57:45,718 | INFO | Chart Generated: True
+2026-11-20 23:57:45,718 | INFO | Answer:
+**Average 1st‑innings scores (runs) – IPL 2018 → 2026**
+
+| Season | Avg 1st‑innings score |
+|--------|----------------------|
+| 2018 | 172.47 |
+| 2019 | 166.73 |
+| 2020 | 169.50 |
+| 2021 | 159.32 |
+| 2022 | 171.12 |
+| 2023 | 182.73 |
+| 2024 | 189.59 |
+| 2025 | 188.84 |
+| 2026 | 193.03 |
+
+**Trend explanation**
+
+- **Overall rise:** The average first‑innings total has climbed from **172.47 runs in 2018** to **193.03 runs in 2026**, a **+20.6 runs** increase over nine seasons. This aligns with the broader era shift reported in the IPL historical analysis, where the 2018‑2026 period averages **178.51 runs**, up **18.66 runs** from the 2008‑2017 era.
+
+- **Year‑to‑year fluctuations:**  
+  *2019–2021* saw a dip, hitting a low of **159.32 runs in 2021** – the only season below the 2018 average. The dip coincides with the pandemic‑affected 2020‑2021 schedules, which featured shorter venues and altered pitch preparations.  
+  *2022* rebounded to **171.12 runs**, and from **2023 onward** the scores accelerated sharply, crossing the 180‑run mark and reaching **193 runs** by 2026.
+
+- **Drivers of the upward trend:**  
+  1. **Batting‑friendly conditions** – newer stadiums and flatter pitches have become more common.  
+  2. **Power‑play rule tweaks** (e.g., larger field‑restriction zones) have encouraged aggressive starts.  
+  3. **Higher‑calibre batting line‑ups** – teams now field deeper line‑ups with multiple T20 specialists, raising baseline totals.
+
+- **Impact on match outcomes:** The analytical finding notes a strong positive correlation (**r = 0.3879**) between first‑innings scores and defending‑win probability. As totals rise, teams batting first are increasingly able to set defendable targets, reflected in the growing proportion of matches won by batting‑first sides in recent seasons.
+
+**Bottom line:** From 2018 to 2026 the IPL has entered a higher‑scoring era, with average first‑innings scores climbing steadily after a brief dip in 2021. This upward trajectory reflects both evolving playing conditions and more aggressive batting strategies.
+
+2026-11-20 23:57:45,718 | INFO | Phase 6 verification complete! Log saved to: c:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\logs\agent_verification.log
