@@ -1,4 +1,5 @@
 import os
+import sys
 import zipfile
 import logging
 import boto3
@@ -27,7 +28,32 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def zip_bronze_layer(bronze_dir, zip_path):
+def s3_object_exists(s3_client, bucket: str, key: str) -> bool:
+    try:
+        s3_client.head_object(Bucket=bucket, Key=key)
+        return True
+    except ClientError:
+        return False
+
+
+def clear_s3_prefix(s3_client, bucket: str, prefix: str):
+    """Deletes stale objects under a prefix so Spark's new UUID Parquet files don't pile up."""
+    paginator = s3_client.get_paginator("list_objects_v2")
+    to_delete = []
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            to_delete.append({"Key": obj["Key"]})
+
+    if not to_delete:
+        return
+
+    # S3 delete_objects accepts up to 1,000 keys per call
+    for i in range(0, len(to_delete), 1000):
+        s3_client.delete_objects(Bucket=bucket, Delete={"Objects": to_delete[i : i + 1000]})
+    logger.info(f"Cleared {len(to_delete)} stale objects under s3://{bucket}/{prefix}")
+
+
+def zip_bronze_layer(bronze_dir: str, zip_path: str):
     logger.info(f"Compressing Bronze CSVs into single archive: {zip_path}")
     file_count = 0
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -41,11 +67,10 @@ def zip_bronze_layer(bronze_dir, zip_path):
     logger.info(f"Compressed {file_count} Bronze files into {size_mb:.2f} MB archive.")
 
 
-def upload_directory(s3_client, local_dir, bucket, s3_prefix):
+def upload_directory(s3_client, local_dir: str, bucket: str, s3_prefix: str) -> int:
     uploaded = 0
     for root, _, files in os.walk(local_dir):
         for file in files:
-            # Skip Spark temporary/CRC metadata files to save PUT requests
             if file.endswith(".crc") or file == "_SUCCESS":
                 continue
             local_path = os.path.join(root, file)
@@ -57,7 +82,7 @@ def upload_directory(s3_client, local_dir, bucket, s3_prefix):
     return uploaded
 
 
-def sync_lake_to_s3():
+def sync_lake_to_s3(force_bronze: bool = False):
     bucket = os.getenv("AWS_S3_BUCKET")
     region = os.getenv("AWS_REGION", "ap-south-1")
 
@@ -78,23 +103,30 @@ def sync_lake_to_s3():
 
     total_puts = 0
 
-    # 1. Bronze Layer (zipped into 1 PUT request)
+    # 1. Bronze Layer (skip if already in S3 unless --force-bronze is passed)
+    bronze_key = "bronze/cricsheet_raw.zip"
     bronze_raw_dir = os.path.join(BASE_DIR, "bronze", "cricsheet_raw")
     bronze_zip_path = os.path.join(BASE_DIR, "bronze", "cricsheet_raw.zip")
-    if os.path.exists(bronze_raw_dir):
-        zip_bronze_layer(bronze_raw_dir, bronze_zip_path)
-        s3_client.upload_file(bronze_zip_path, bucket, "bronze/cricsheet_raw.zip")
-        logger.info(f"Uploaded Bronze archive to s3://{bucket}/bronze/cricsheet_raw.zip")
-        total_puts += 1
 
-    # 2. Silver Layer (Parquet)
+    if force_bronze or not s3_object_exists(s3_client, bucket, bronze_key):
+        if os.path.exists(bronze_raw_dir):
+            zip_bronze_layer(bronze_raw_dir, bronze_zip_path)
+            s3_client.upload_file(bronze_zip_path, bucket, bronze_key)
+            logger.info(f"Uploaded Bronze archive to s3://{bucket}/{bronze_key}")
+            total_puts += 1
+    else:
+        logger.info(f"Skipping Bronze: s3://{bucket}/{bronze_key} already exists (use --force-bronze to re-upload).")
+
+    # 2. Silver Layer (clear stale files, then upload)
     silver_dir = os.path.join(BASE_DIR, "silver", "deliveries")
     if os.path.exists(silver_dir):
+        clear_s3_prefix(s3_client, bucket, "silver/deliveries/")
         total_puts += upload_directory(s3_client, silver_dir, bucket, "silver/deliveries")
 
-    # 3. Gold Layer (Parquet)
+    # 3. Gold Layer (clear stale files, then upload)
     gold_dir = os.path.join(BASE_DIR, "gold")
     if os.path.exists(gold_dir):
+        clear_s3_prefix(s3_client, bucket, "gold/")
         total_puts += upload_directory(s3_client, gold_dir, bucket, "gold")
 
     logger.info(f"S3 Data Lake sync complete! Total PUT requests used: {total_puts}")
@@ -102,4 +134,5 @@ def sync_lake_to_s3():
 
 
 if __name__ == "__main__":
-    sync_lake_to_s3()
+    force = "--force-bronze" in sys.argv
+    sync_lake_to_s3(force_bronze=force)

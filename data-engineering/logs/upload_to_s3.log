@@ -1,9 +1,4 @@
-2026-11-20 12:56:09,349 | INFO | Connecting to S3 bucket 'ipl-intelligence-lake-ritam2026' in region 'ap-south-1'...
-2026-11-20 12:56:09,434 | INFO | Found credentials in shared credentials file: ~/.aws/credentials
-2026-11-20 12:56:11,638 | INFO | Compressing Bronze CSVs into single archive: c:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\bronze\cricsheet_raw.zip
-2026-11-20 12:56:39,471 | INFO | Compressed 2489 Bronze files into 6.54 MB archive.
-2026-11-20 12:57:55,004 | INFO | Uploaded Bronze archive to s3://ipl-intelligence-lake-ritam2026/bronze/cricsheet_raw.zip
-2026-11-20 13:13:01,844 | INFO | Uploaded 1708 files to s3://ipl-intelligence-lake-ritam2026/silver/deliveries/
-2026-11-20 13:13:07,275 | INFO | Uploaded 8 files to s3://ipl-intelligence-lake-ritam2026/gold/
-2026-11-20 13:13:07,275 | INFO | S3 Data Lake sync complete! Total PUT requests used: 1717
-2026-11-20 13:13:07,275 | INFO | Log saved to: c:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\logs\upload_to_s3.log
+2026-11-21 01:34:07,202 | INFO | Connecting to S3 bucket 'ipl-intelligence-lake-ritam2026' in region 'ap-south-1'...
+2026-11-21 01:34:07,254 | INFO | Found credentials in shared credentials file: ~/.aws/credentials
+2026-11-21 01:34:08,987 | INFO | Skipping Bronze: s3://ipl-intelligence-lake-ritam2026/bronze/cricsheet_raw.zip already exists (use --force-bronze to re-upload).
+2026-11-21 01:34:11,895 | INFO | Cleared 544 stale objects under s3://ipl-intelligence-lake-ritam2026/silver/deliveries/

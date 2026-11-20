@@ -22,6 +22,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Canonical franchise name mapping for renamed IPL teams
+TEAM_NAME_MAPPING = {
+    "Royal Challengers Bangalore": "Royal Challengers Bengaluru",
+    "Delhi Daredevils": "Delhi Capitals",
+    "Kings XI Punjab": "Punjab Kings",
+}
+
 
 def build_silver_layer():
     logger.info("Initializing PySpark Session...")
@@ -54,10 +61,13 @@ def build_silver_layer():
     row_count = df_raw.count()
     logger.info(f"Total unique ball-by-ball rows extracted: {row_count:,}")
 
-    # 2. TRANSFORM: Clean data, normalize season, and enforce strict integer types
-    logger.info("Applying transformations (normalizing seasons, casting integers, filling nulls)...")
+    # 2. TRANSFORM: Clean data, normalize season, standardize team names, and enforce integer types
+    logger.info("Applying transformations (normalizing seasons, standardizing team names, casting integers, filling nulls)...")
 
     df_clean = df_raw.withColumn("match_id", col("match_id").cast(IntegerType()))
+
+    # Standardize renamed IPL franchise names
+    df_clean = df_clean.replace(TEAM_NAME_MAPPING, subset=["batting_team", "bowling_team"])
 
     # Normalize Cricsheet's 3 slash-formatted seasons to calendar year integers
     df_clean = df_clean.withColumn(
@@ -88,7 +98,7 @@ def build_silver_layer():
 
     df_clean.write.mode("overwrite").partitionBy("season").parquet(silver_path)
 
-    logger.info("Silver layer ETL complete! Deduplicated Parquet files generated successfully.")
+    logger.info("Silver layer ETL complete! Deduplicated and standardized Parquet files generated successfully.")
     logger.info(f"Log saved to: {log_file}")
     spark.stop()
 

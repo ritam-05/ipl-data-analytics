@@ -1,8 +1,8 @@
-2026-11-20 20:59:52,789 | INFO | Initializing PySpark Session...
-2026-11-20 20:59:59,588 | INFO | Found 2487 total CSVs -> Selected 1243 unique match CSVs.
-2026-11-20 21:00:12,925 | INFO | Total unique ball-by-ball rows extracted: 295,732
-2026-11-20 21:00:12,925 | INFO | Applying transformations (normalizing seasons, casting integers, filling nulls)...
-2026-11-20 21:00:13,523 | INFO | Schema after transformations:
+2026-11-21 01:18:16,793 | INFO | Initializing PySpark Session...
+2026-11-21 01:18:23,456 | INFO | Found 2487 total CSVs -> Selected 1243 unique match CSVs.
+2026-11-21 01:18:36,326 | INFO | Total unique ball-by-ball rows extracted: 295,732
+2026-11-21 01:18:36,326 | INFO | Applying transformations (normalizing seasons, standardizing team names, casting integers, filling nulls)...
+2026-11-21 01:18:37,131 | INFO | Schema after transformations:
 root
  |-- match_id: integer (nullable = true)
  |-- season: integer (nullable = true)
@@ -33,6 +33,6 @@ root
  |-- fielder_3: string (nullable = true)
  |-- total_runs: integer (nullable = true)
 
-2026-11-20 21:00:13,524 | INFO | Writing cleaned data to Parquet at: c:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\silver\deliveries (Partitioned by season)
-2026-11-20 21:00:27,745 | INFO | Silver layer ETL complete! Deduplicated Parquet files generated successfully.
-2026-11-20 21:00:27,745 | INFO | Log saved to: c:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\logs\etl_silver.log
+2026-11-21 01:18:37,131 | INFO | Writing cleaned data to Parquet at: C:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\silver\deliveries (Partitioned by season)
+2026-11-21 01:18:52,813 | INFO | Silver layer ETL complete! Deduplicated and standardized Parquet files generated successfully.
+2026-11-21 01:18:52,813 | INFO | Log saved to: C:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\logs\etl_silver.log
