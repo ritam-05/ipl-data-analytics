@@ -15,4 +15,7 @@ jupyter==1.1.1
 # Supabase PostgreSQL Connectivity
 SQLAlchemy>=2.0.0
 psycopg[binary]>=3.2.0
+pgvector>=0.3.6
 
+# RAG Embeddings (BGE-small 384-dim)
+sentence-transformers>=3.0.0

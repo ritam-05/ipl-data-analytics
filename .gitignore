@@ -16,9 +16,6 @@ __pycache__/
 coverage.xml
 htmlcov/
 
-# Runtime logs
-*.log
-
 # Generated and downloaded data
 data-engineering/bronze/
 data-engineering/silver/

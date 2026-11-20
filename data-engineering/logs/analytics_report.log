@@ -1,0 +1,344 @@
+2026-11-20 21:09:29,766 | INFO | === IPL INTELLIGENCE: PHASE 4 ANALYTICS VERIFICATION ===
+2026-11-20 21:09:33,994 | INFO | 
+1. IPL OVERVIEW:
+{
+  "total_seasons": 19,
+  "total_matches": 1243,
+  "total_players": 808,
+  "total_teams": 19,
+  "total_venues": 60,
+  "avg_first_innings_score": 168.57,
+  "highest_team_score": 287
+}
+2026-11-20 21:09:34,436 | INFO | 
+2. TOP 5 ALL-TIME BATTERS:
+[
+  {
+    "player_name": "V Kohli",
+    "matches": 275,
+    "total_runs": 9336,
+    "balls_faced": 6926,
+    "fours": 845,
+    "sixes": 317,
+    "highest_score": 113,
+    "batting_average": "40.42",
+    "strike_rate": "134.80"
+  },
+  {
+    "player_name": "RG Sharma",
+    "matches": 275,
+    "total_runs": 7329,
+    "balls_faced": 5514,
+    "fours": 661,
+    "sixes": 324,
+    "highest_score": 109,
+    "batting_average": "29.79",
+    "strike_rate": "132.92"
+  },
+  {
+    "player_name": "S Dhawan",
+    "matches": 221,
+    "total_runs": 6769,
+    "balls_faced": 5324,
+    "fours": 768,
+    "sixes": 153,
+    "highest_score": 106,
+    "batting_average": "35.07",
+    "strike_rate": "127.14"
+  },
+  {
+    "player_name": "DA Warner",
+    "matches": 184,
+    "total_runs": 6565,
+    "balls_faced": 4697,
+    "fours": 663,
+    "sixes": 236,
+    "highest_score": 126,
+    "batting_average": "40.52",
+    "strike_rate": "139.77"
+  },
+  {
+    "player_name": "KL Rahul",
+    "matches": 149,
+    "total_runs": 5815,
+    "balls_faced": 4179,
+    "fours": 508,
+    "sixes": 239,
+    "highest_score": 152,
+    "batting_average": "46.15",
+    "strike_rate": "139.15"
+  }
+]
+2026-11-20 21:09:35,120 | INFO | 
+3. TOP 5 ALL-TIME BOWLERS:
+[
+  {
+    "player_name": "YS Chahal",
+    "matches": 184,
+    "total_wickets": 233,
+    "runs_conceded": 5417,
+    "overs": "672.8",
+    "economy_rate": "8.05",
+    "bowling_average": "23.25",
+    "bowling_strike_rate": "17.33"
+  },
+  {
+    "player_name": "B Kumar",
+    "matches": 206,
+    "total_wickets": 226,
+    "runs_conceded": 5913,
+    "overs": "766.7",
+    "economy_rate": "7.71",
+    "bowling_average": "26.16",
+    "bowling_strike_rate": "20.35"
+  },
+  {
+    "player_name": "SP Narine",
+    "matches": 200,
+    "total_wickets": 207,
+    "runs_conceded": 5261,
+    "overs": "775.2",
+    "economy_rate": "6.79",
+    "bowling_average": "25.42",
+    "bowling_strike_rate": "22.47"
+  },
+  {
+    "player_name": "PP Chawla",
+    "matches": 191,
+    "total_wickets": 192,
+    "runs_conceded": 5108,
+    "overs": "641.7",
+    "economy_rate": "7.96",
+    "bowling_average": "26.60",
+    "bowling_strike_rate": "20.05"
+  },
+  {
+    "player_name": "R Ashwin",
+    "matches": 217,
+    "total_wickets": 187,
+    "runs_conceded": 5652,
+    "overs": "785.0",
+    "economy_rate": "7.20",
+    "bowling_average": "30.22",
+    "bowling_strike_rate": "25.19"
+  }
+]
+2026-11-20 21:09:37,544 | INFO | 
+4. MOST CONSISTENT BATTERS (Lowest CV):
+[
+  {
+    "player_name": "RG Sharma",
+    "seasons_played": 19,
+    "total_runs": 7329,
+    "mean_runs_per_season": 385.74,
+    "std_runs_per_season": 71.54,
+    "cv": 0.185
+  },
+  {
+    "player_name": "SK Raina",
+    "seasons_played": 13,
+    "total_runs": 5528,
+    "mean_runs_per_season": 425.23,
+    "std_runs_per_season": 95.84,
+    "cv": 0.225
+  },
+  {
+    "player_name": "R Dravid",
+    "seasons_played": 6,
+    "total_runs": 2174,
+    "mean_runs_per_season": 362.33,
+    "std_runs_per_season": 91.48,
+    "cv": 0.252
+  },
+  {
+    "player_name": "SV Samson",
+    "seasons_played": 14,
+    "total_runs": 5181,
+    "mean_runs_per_season": 370.07,
+    "std_runs_per_season": 101.21,
+    "cv": 0.273
+  },
+  {
+    "player_name": "AC Gilchrist",
+    "seasons_played": 6,
+    "total_runs": 2069,
+    "mean_runs_per_season": 344.83,
+    "std_runs_per_season": 116.53,
+    "cv": 0.338
+  }
+]
+2026-11-20 21:09:38,240 | INFO | 
+5. TOP 5 TEAMS BY WIN %:
+[
+  {
+    "team": "Royal Challengers Bengaluru",
+    "matches_played": 46,
+    "wins": 29,
+    "win_pct": "63.04",
+    "bat_first_wins": 13,
+    "chase_wins": 16
+  },
+  {
+    "team": "Rising Pune Supergiant",
+    "matches_played": 16,
+    "wins": 10,
+    "win_pct": "62.50",
+    "bat_first_wins": 5,
+    "chase_wins": 5
+  },
+  {
+    "team": "Gujarat Titans",
+    "matches_played": 77,
+    "wins": 47,
+    "win_pct": "61.04",
+    "bat_first_wins": 20,
+    "chase_wins": 27
+  },
+  {
+    "team": "Chennai Super Kings",
+    "matches_played": 266,
+    "wins": 147,
+    "win_pct": "55.26",
+    "bat_first_wins": 75,
+    "chase_wins": 72
+  },
+  {
+    "team": "Mumbai Indians",
+    "matches_played": 291,
+    "wins": 156,
+    "win_pct": "53.61",
+    "bat_first_wins": 78,
+    "chase_wins": 78
+  }
+]
+2026-11-20 21:09:38,610 | INFO | 
+6. HEAD-TO-HEAD (MI vs CSK):
+{
+  "team_a": "Mumbai Indians",
+  "team_b": "Chennai Super Kings",
+  "total_matches": 41,
+  "team_a_wins": 21,
+  "team_b_wins": 20,
+  "no_result_or_tie": 0
+}
+2026-11-20 21:09:39,023 | INFO | 
+7. TOP 5 VENUES:
+[
+  {
+    "venue": "Eden Gardens",
+    "total_matches": 77,
+    "avg_first_innings_score": 160.18,
+    "highest_first_innings_score": 232,
+    "lowest_first_innings_score": 81,
+    "bat_first_wins": 34,
+    "chase_wins": 43,
+    "chase_win_pct": 55.84
+  },
+  {
+    "venue": "Wankhede Stadium",
+    "total_matches": 73,
+    "avg_first_innings_score": 166.03,
+    "highest_first_innings_score": 235,
+    "lowest_first_innings_score": 67,
+    "bat_first_wins": 35,
+    "chase_wins": 37,
+    "chase_win_pct": 51.39
+  },
+  {
+    "venue": "M Chinnaswamy Stadium",
+    "total_matches": 65,
+    "avg_first_innings_score": 168.06,
+    "highest_first_innings_score": 263,
+    "lowest_first_innings_score": 89,
+    "bat_first_wins": 28,
+    "chase_wins": 35,
+    "chase_win_pct": 55.56
+  },
+  {
+    "venue": "Feroz Shah Kotla",
+    "total_matches": 60,
+    "avg_first_innings_score": 161.63,
+    "highest_first_innings_score": 231,
+    "lowest_first_innings_score": 56,
+    "bat_first_wins": 29,
+    "chase_wins": 30,
+    "chase_win_pct": 50.85
+  },
+  {
+    "venue": "Wankhede Stadium, Mumbai",
+    "total_matches": 59,
+    "avg_first_innings_score": 181.92,
+    "highest_first_innings_score": 243,
+    "lowest_first_innings_score": 97,
+    "bat_first_wins": 25,
+    "chase_wins": 34,
+    "chase_win_pct": 57.63
+  }
+]
+2026-11-20 21:09:40,143 | INFO | 
+8. EXTREME MATCHES (Top 3 Highest Scoring):
+[
+  {
+    "match_id": 1426268,
+    "season": 2024,
+    "start_date": "2024-04-15",
+    "venue": "M Chinnaswamy Stadium, Bengaluru",
+    "team_1": "Sunrisers Hyderabad",
+    "team_2": "Royal Challengers Bengaluru",
+    "innings_1_runs": 287,
+    "innings_2_runs": 262,
+    "combined_runs": 549,
+    "winner": "Sunrisers Hyderabad"
+  },
+  {
+    "match_id": 1529278,
+    "season": 2026,
+    "start_date": "2026-04-25",
+    "venue": "Arun Jaitley Stadium, Delhi",
+    "team_1": "Delhi Capitals",
+    "team_2": "Punjab Kings",
+    "innings_1_runs": 264,
+    "innings_2_runs": 265,
+    "combined_runs": 529,
+    "winner": "Punjab Kings"
+  },
+  {
+    "match_id": 1473439,
+    "season": 2025,
+    "start_date": "2025-03-23",
+    "venue": "Rajiv Gandhi International Stadium, Uppal, Hyderabad",
+    "team_1": "Sunrisers Hyderabad",
+    "team_2": "Rajasthan Royals",
+    "innings_1_runs": 286,
+    "innings_2_runs": 242,
+    "combined_runs": 528,
+    "winner": "Sunrisers Hyderabad"
+  }
+]
+2026-11-20 21:09:41,151 | INFO | 
+9. STATISTICAL INVESTIGATIONS:
+{
+  "chasing_advantage_test": {
+    "sample_size": 1221,
+    "chase_wins": 652,
+    "bat_first_wins": 569,
+    "chase_win_pct": 53.4,
+    "p_value": 0.0189,
+    "statistically_significant_at_0_05": true
+  },
+  "first_innings_score_vs_win_correlation": {
+    "point_biserial_r": 0.3879,
+    "p_value": 3.94e-45,
+    "interpretation": "Strong positive association between 1st innings total and defending win probability"
+  },
+  "scoring_era_shift_test": {
+    "early_era_2008_2017_avg": 159.85,
+    "modern_era_2018_2026_avg": 178.51,
+    "difference_runs": 18.66,
+    "welch_t_stat": 9.984,
+    "p_value": 1.39e-22,
+    "statistically_significant_at_0_05": true
+  }
+}
+2026-11-20 21:09:41,151 | INFO | 
+Phase 4 verification complete! Report saved to: c:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\logs\analytics_report.log

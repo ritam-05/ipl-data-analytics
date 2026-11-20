@@ -1,0 +1,65 @@
+2026-11-19 18:57:43,243 | INFO | --- DATASET OVERVIEW ---
+2026-11-19 18:57:43,243 | INFO | Total CSV files found: 2487
+2026-11-19 18:57:43,243 | INFO | --- INSPECTING SAMPLE FILE: 1082591.csv ---
+2026-11-19 18:57:43,270 | INFO | 
+1. Data Types and Schema:
+match_id                    int64
+season                      int64
+start_date                    str
+venue                         str
+innings                     int64
+ball                      float64
+actual_delivery           float64
+batting_team                  str
+bowling_team                  str
+striker                       str
+non_striker                   str
+bowler                        str
+runs_off_bat                int64
+extras                      int64
+wides                     float64
+noballs                   float64
+byes                      float64
+legbyes                   float64
+penalty                   float64
+non_boundary              float64
+wicket_type                   str
+player_dismissed              str
+other_wicket_type         float64
+other_player_dismissed    float64
+fielder_1                     str
+fielder_2                 float64
+fielder_3                 float64
+dtype: object
+2026-11-19 18:57:43,295 | INFO | 
+2. First 5 Rows of Ball-by-Ball Data:
+   match_id  season  start_date  ... fielder_1  fielder_2  fielder_3
+0   1082591    2017  2017-04-05  ...       NaN        NaN        NaN
+1   1082591    2017  2017-04-05  ...       NaN        NaN        NaN
+2   1082591    2017  2017-04-05  ...       NaN        NaN        NaN
+3   1082591    2017  2017-04-05  ...       NaN        NaN        NaN
+4   1082591    2017  2017-04-05  ...       NaN        NaN        NaN
+
+[5 rows x 27 columns]
+2026-11-19 18:57:43,301 | INFO | 
+3. Missing Values Summary:
+wides                     240
+noballs                   246
+byes                      248
+legbyes                   246
+penalty                   248
+non_boundary              248
+wicket_type               234
+player_dismissed          234
+other_wicket_type         248
+other_player_dismissed    248
+fielder_1                 237
+fielder_2                 248
+fielder_3                 248
+dtype: int64
+2026-11-19 18:57:43,306 | INFO | 
+4. Unique Wicket Types:
+<ArrowStringArray>
+['caught', 'bowled', 'run out']
+Length: 3, dtype: str
+2026-11-19 18:57:43,306 | INFO | EDA log saved to: c:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\logs\eda_initial.log
