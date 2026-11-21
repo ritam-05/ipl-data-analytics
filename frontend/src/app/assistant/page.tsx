@@ -112,10 +112,8 @@ export default function AssistantPage() {
         true
       );
 
-      if (!activeSessionId) {
-        setActiveSessionId(res.session_id);
-        loadSessions();
-      }
+      setActiveSessionId(res.session_id);
+      loadSessions();
 
       setMessages((prev) => [
         ...prev,
@@ -127,7 +125,11 @@ export default function AssistantPage() {
         },
       ]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to get response from AI Assistant.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to reach cricketmama.exe. Make sure the FastAPI backend is running on port 7860."
+      );
     } finally {
       setSending(false);
     }
@@ -167,7 +169,7 @@ export default function AssistantPage() {
     return (
       <div className="mx-auto mt-12 max-w-lg rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center">
         <Bot className="mx-auto h-10 w-10 text-amber-400" />
-        <h1 className="mt-4 text-xl font-bold text-white">Sign in to use the AI Assistant</h1>
+        <h1 className="mt-4 text-xl font-bold text-white">Sign in to use cricketmama.exe</h1>
         <p className="mt-2 text-sm text-slate-400">
           Your chat history, dynamic SQL charts, and saved analyses are securely stored in your account.
         </p>
@@ -183,19 +185,19 @@ export default function AssistantPage() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-4">
-      {/* Sidebar: Chat Sessions */}
+      {/* Sidebar: Rolling Last 3 Chat Sessions */}
       <aside className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 lg:col-span-1">
         <button
           onClick={startNewChat}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400"
         >
           <Plus className="h-4 w-4" />
-          New Analysis
+          New Chat
         </button>
 
         <div className="mt-4 space-y-1.5">
           <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Recent Sessions
+            Recent Sessions (Last 3)
           </p>
           {sessions.length === 0 ? (
             <p className="px-2 py-4 text-xs text-slate-500">No saved chats yet.</p>
@@ -225,11 +227,8 @@ export default function AssistantPage() {
             <div className="flex h-full flex-col items-center justify-center text-center">
               <Bot className="h-10 w-10 text-amber-400" />
               <h2 className="mt-3 text-lg font-semibold text-white">
-                Ask Know IPL Anything
+                Ask cricketmama.exe Anything
               </h2>
-              <p className="mt-1 max-w-md text-xs text-slate-400">
-                Powered by Groq + LangGraph Hybrid RAG &amp; Text-to-SQL over 19 IPL seasons (2008–2026).
-              </p>
               <div className="mt-6 grid w-full max-w-xl gap-2 sm:grid-cols-2">
                 {SAMPLE_PROMPTS.map((p) => (
                   <button
@@ -301,7 +300,7 @@ export default function AssistantPage() {
 
           {sending && (
             <div className="text-xs text-amber-400">
-              Analyzing IPL data (routing RAG / Text-to-SQL)...
+              cricketmama.exe is crunching IPL numbers...
             </div>
           )}
         </div>
@@ -323,7 +322,7 @@ export default function AssistantPage() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question about IPL players, teams, venues, or seasons..."
+            placeholder="Ask cricketmama.exe about IPL players, teams, venues, or seasons..."
             className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none"
           />
           <button

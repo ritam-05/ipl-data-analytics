@@ -23,7 +23,7 @@ const NAV_LINKS = [
   { href: "/teams", label: "Teams", icon: Trophy },
   { href: "/venues", label: "Venues", icon: MapPin },
   { href: "/seasons", label: "Seasons", icon: BarChart3 },
-  { href: "/assistant", label: "AI Assistant", icon: Bot },
+  { href: "/assistant", label: "cricketmama.exe", icon: Bot },
   { href: "/saved", label: "Saved", icon: Bookmark },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

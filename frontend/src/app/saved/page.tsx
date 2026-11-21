@@ -62,7 +62,7 @@ export default function SavedAnalysesPage() {
       <div>
         <h1 className="text-2xl font-bold text-white">Saved Analyses</h1>
         <p className="text-sm text-slate-400">
-          Your bookmarked AI insights, generated SQL queries, and interactive charts.
+          Your bookmarked cricketmama.exe insights, generated SQL queries, and interactive charts.
         </p>
       </div>
 
@@ -74,9 +74,9 @@ export default function SavedAnalysesPage() {
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-10 text-center text-sm text-slate-400">
-          No saved analyses yet. Ask a question in the{" "}
+          No saved analyses yet. Ask a question in{" "}
           <Link href="/assistant" className="text-amber-400 underline">
-            AI Assistant
+            cricketmama.exe
           </Link>{" "}
           and click <strong>Save Analysis</strong>.
         </div>

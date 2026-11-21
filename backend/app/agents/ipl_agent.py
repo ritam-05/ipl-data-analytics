@@ -14,7 +14,6 @@ load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
 EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 
-# Compact schema context for Text-to-SQL (kept concise to stay well within Groq's 8K TPM free limit)
 GOLD_SCHEMA_PROMPT = """
 PostgreSQL Schema (all tables in schema 'public'):
 1. dim_seasons(season INT PK, total_matches INT, season_start_date TEXT, season_end_date TEXT)
@@ -24,9 +23,9 @@ PostgreSQL Schema (all tables in schema 'public'):
 5. fact_matches(match_id INT PK, season INT, start_date TEXT, venue TEXT, team_1 TEXT, team_2 TEXT, innings_1_runs INT, innings_1_wickets INT, innings_2_runs INT, innings_2_wickets INT, winner TEXT, win_type TEXT, win_margin INT)
    -- win_type is 'runs' (bat first won), 'wickets' (chasing team won), 'tie', or 'no_result'.
 6. fact_player_batting_season(player_name TEXT, season INT, team TEXT, matches INT, runs INT, balls_faced INT, fours INT, sixes INT, highest_score INT, dismissals INT, batting_average FLOAT, strike_rate FLOAT)
-   -- Note: For career batting average, use SUM(runs)::numeric / NULLIF(SUM(dismissals), 0). For career strike rate, use (SUM(runs)::numeric / NULLIF(SUM(balls_faced), 0)) * 100.
+   -- Career batting average: SUM(runs)::numeric / NULLIF(SUM(dismissals), 0). Career SR: (SUM(runs)::numeric / NULLIF(SUM(balls_faced), 0)) * 100.
 7. fact_player_bowling_season(player_name TEXT, season INT, team TEXT, matches INT, legal_balls INT, runs_conceded INT, wickets INT, overs FLOAT, economy_rate FLOAT, bowling_average FLOAT, bowling_strike_rate FLOAT)
-   -- Note: For career economy, use (SUM(runs_conceded)::numeric / NULLIF(SUM(legal_balls), 0)) * 6.
+   -- Career economy: (SUM(runs_conceded)::numeric / NULLIF(SUM(legal_balls), 0)) * 6.
 8. fact_venue_stats(venue TEXT PK, total_matches INT, avg_first_innings_score FLOAT, highest_first_innings_score INT, lowest_first_innings_score INT, bat_first_wins INT, chase_wins INT, chase_win_pct FLOAT)
 """
 
@@ -35,7 +34,6 @@ FORBIDDEN_SQL_KEYWORDS = re.compile(
     re.IGNORECASE,
 )
 
-# Lazy singletons so Hugging Face Spaces only loads models once
 _engine = None
 _embedder = None
 _llm = None
@@ -46,7 +44,7 @@ def get_engine():
     if _engine is None:
         db_url = os.getenv("SUPABASE_DB_URL")
         if not db_url:
-            raise ValueError("SUPABASE_DB_URL is not set.")
+            raise ValueError("SUPABASE_DB_URL is not set in .env.")
         _engine = create_engine(db_url, pool_pre_ping=True)
     return _engine
 
@@ -63,7 +61,7 @@ def get_llm():
     if _llm is None:
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            raise ValueError("GROQ_API_KEY is not set.")
+            raise ValueError("GROQ_API_KEY is not set in .env.")
         model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
         _llm = ChatGroq(api_key=api_key, model=model_name, temperature=0.1, max_retries=2)
     return _llm
@@ -80,6 +78,17 @@ class AgentState(TypedDict):
     sql_error: Optional[str]
     chart_spec: Optional[dict]
     answer: str
+
+
+def _format_history(chat_history: list[dict]) -> str:
+    if not chat_history:
+        return ""
+    lines = []
+    for msg in chat_history[-4:]:
+        role = msg.get("role", "user")
+        content = str(msg.get("content", ""))[:300]
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines)
 
 
 # ============================================================================
@@ -129,6 +138,7 @@ def rag_retrieve_node(state: AgentState) -> dict:
 
 def sql_generate_node(state: AgentState) -> dict:
     llm = get_llm()
+    history_str = _format_history(state.get("chat_history") or [])
     system_prompt = (
         "You are an expert PostgreSQL analyst for IPL cricket data.\n"
         f"{GOLD_SCHEMA_PROMPT}\n"
@@ -138,9 +148,12 @@ def sql_generate_node(state: AgentState) -> dict:
         "3. Always include a LIMIT clause (max 50).\n"
         "4. Return ONLY raw SQL with no markdown fences, no explanation, and no trailing semicolon."
     )
-    resp = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=state["question"])])
+    user_msg = state["question"]
+    if history_str:
+        user_msg = f"Recent conversation:\n{history_str}\n\nCurrent question: {state['question']}"
+
+    resp = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_msg)])
     raw_sql = resp.content.strip()
-    # Strip markdown code fences if the model included them
     raw_sql = re.sub(r"^```(?:sql)?\s*", "", raw_sql, flags=re.IGNORECASE)
     raw_sql = re.sub(r"\s*```$", "", raw_sql).strip().rstrip(";")
     return {"sql_query": raw_sql}
@@ -152,14 +165,12 @@ def sql_validate_execute_node(state: AgentState) -> dict:
     if not sql_query:
         return {"sql_results": [], "sql_error": "No SQL query generated."}
 
-    # Strict read-only guardrails
     if not re.match(r"^(SELECT|WITH)\b", sql_query, re.IGNORECASE):
         return {"sql_results": [], "sql_error": "Blocked: Only SELECT/WITH read-only queries are allowed."}
 
     if FORBIDDEN_SQL_KEYWORDS.search(sql_query) or ";" in sql_query:
         return {"sql_results": [], "sql_error": "Blocked: Query contains forbidden SQL keywords or multiple statements."}
 
-    # Enforce row limit if missing
     if not re.search(r"\bLIMIT\s+\d+\b", sql_query, re.IGNORECASE):
         sql_query = f"{sql_query} LIMIT 50"
 
@@ -186,7 +197,6 @@ def generate_chart_node(state: AgentState) -> dict:
     if len(columns) < 2:
         return {"chart_spec": None}
 
-    # Pick first categorical/season column as X and first numeric column as Y
     x_col = columns[0]
     y_col = None
     for c in columns[1:]:
@@ -225,10 +235,13 @@ def synthesize_response_node(state: AgentState) -> dict:
     rag_docs = state.get("rag_context") or []
     sql_rows = state.get("sql_results") or []
     sql_err = state.get("sql_error")
+    history_str = _format_history(state.get("chat_history") or [])
 
     context_parts = []
     if prefs:
         context_parts.append(f"User Preferences: {json.dumps(prefs)}")
+    if history_str:
+        context_parts.append(f"Recent Conversation:\n{history_str}")
     if rag_docs:
         rag_text = "\n".join(f"- [{d['doc_type']}] {d['content']}" for d in rag_docs)
         context_parts.append(f"Retrieved Knowledge Base:\n{rag_text}")
@@ -239,7 +252,7 @@ def synthesize_response_node(state: AgentState) -> dict:
         context_parts.append(f"SQL Note: Query could not execute ({sql_err}). Rely on retrieved knowledge if available.")
 
     system_prompt = (
-        "You are IPL Intelligence, an expert cricket data analyst.\n"
+        "You are cricketmama.exe, a sharp, friendly IPL cricket data analyst for Know IPL.\n"
         "Answer the user's question accurately using ONLY the provided context and SQL results. "
         "Never fabricate statistics. Format numbers cleanly and keep the explanation concise and insightful."
     )

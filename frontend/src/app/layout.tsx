@@ -3,6 +3,8 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import AuthGate from "@/components/AuthGate";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Know IPL | Cricket Analytics & Agentic AI",
   description: "Historical IPL Data Warehouse, Interactive Dashboards & Hybrid RAG AI Assistant",
