@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import AuthGate from "@/components/AuthGate";
 
 export const metadata: Metadata = {
-  title: "IPL Intelligence | Cricket Analytics & Agentic AI",
+  title: "Know IPL | Cricket Analytics & Agentic AI",
   description: "Historical IPL Data Warehouse, Interactive Dashboards & Hybrid RAG AI Assistant",
 };
 

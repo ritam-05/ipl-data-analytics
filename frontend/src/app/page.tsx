@@ -77,7 +77,7 @@ export default function OverviewPage() {
   if (!overview) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-        Loading live IPL Intelligence data (waking up API if sleeping)...
+        Loading live Know IPL data (waking up API if sleeping)...
       </div>
     );
   }
@@ -95,9 +95,9 @@ export default function OverviewPage() {
     <div className="space-y-8">
       <section className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">IPL Intelligence</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Know IPL</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Historical IPL Data Warehouse (2008–2026), Statistical Analytics & Agentic AI Assistant.
+            Historical IPL Data Warehouse (2008–2026), Statistical Analytics &amp; Agentic AI Assistant.
           </p>
         </div>
         <Link

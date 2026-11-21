@@ -9,6 +9,7 @@ from backend.app.services.analytics import (
     get_player_consistency,
     get_team_performance,
     get_head_to_head,
+    get_team_details,
     get_venue_analytics,
     get_extreme_matches,
     run_statistical_investigations,
@@ -78,6 +79,15 @@ def head_to_head(
     _user: dict = Depends(get_current_user),
 ):
     return get_head_to_head(team_a=team_a, team_b=team_b)
+
+
+@router.get("/teams/details")
+def team_details(
+    team: str = Query(..., description="Franchise name"),
+    season: Optional[int] = Query(default=None, description="Optional IPL season year"),
+    _user: dict = Depends(get_current_user),
+):
+    return get_team_details(team_name=team, season=season)
 
 
 @router.get("/venues")

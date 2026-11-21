@@ -23,7 +23,9 @@ export default function LoginPage() {
       if (isSignUp) {
         const { error: signUpErr } = await supabase.auth.signUp({ email, password });
         if (signUpErr) throw signUpErr;
-        setMessage("Account created! Check your email to confirm, or sign in if email confirmation is disabled.");
+        setMessage(
+          "Account created! Check your email to confirm, or sign in if email confirmation is disabled."
+        );
       } else {
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
         if (signInErr) throw signInErr;
@@ -39,7 +41,7 @@ export default function LoginPage() {
   return (
     <div className="mx-auto mt-12 max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-8 shadow-xl">
       <h1 className="text-2xl font-bold text-white">
-        {isSignUp ? "Create your account" : "Sign in to IPL Intelligence"}
+        {isSignUp ? "Create your account" : "Sign in to Know IPL"}
       </h1>
       <p className="mt-1 text-sm text-slate-400">
         Access personalized AI analytics, chat history, and saved charts.
@@ -72,7 +74,9 @@ export default function LoginPage() {
         </div>
 
         {error && <p className="rounded-lg bg-red-500/10 p-3 text-xs text-red-400">{error}</p>}
-        {message && <p className="rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-400">{message}</p>}
+        {message && (
+          <p className="rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-400">{message}</p>
+        )}
 
         <button
           type="submit"

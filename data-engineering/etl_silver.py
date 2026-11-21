@@ -27,6 +27,7 @@ TEAM_NAME_MAPPING = {
     "Royal Challengers Bangalore": "Royal Challengers Bengaluru",
     "Delhi Daredevils": "Delhi Capitals",
     "Kings XI Punjab": "Punjab Kings",
+    "Rising Pune Supergiants": "Rising Pune Supergiant",
 }
 
 

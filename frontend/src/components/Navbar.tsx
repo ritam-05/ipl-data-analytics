@@ -59,10 +59,10 @@ export default function Navbar() {
           href={userEmail ? "/" : "/login"}
           className="flex items-center gap-2 text-lg font-bold tracking-tight text-white"
         >
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-sm font-black text-slate-950">
-            IPL
+          <span className="inline-flex h-8 items-center justify-center rounded-lg bg-amber-500 px-2 text-sm font-black text-slate-950">
+            Know
           </span>
-          <span>Intelligence</span>
+          <span>IPL</span>
         </Link>
 
         {userEmail && (

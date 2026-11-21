@@ -225,7 +225,7 @@ export default function AssistantPage() {
             <div className="flex h-full flex-col items-center justify-center text-center">
               <Bot className="h-10 w-10 text-amber-400" />
               <h2 className="mt-3 text-lg font-semibold text-white">
-                Ask IPL Intelligence Anything
+                Ask Know IPL Anything
               </h2>
               <p className="mt-1 max-w-md text-xs text-slate-400">
                 Powered by Groq + LangGraph Hybrid RAG &amp; Text-to-SQL over 19 IPL seasons (2008–2026).
@@ -251,7 +251,7 @@ export default function AssistantPage() {
                 <div
                   className={`max-w-3xl rounded-2xl px-4 py-3 text-sm ${
                     m.role === "user"
-                      ? "bg-amber-500 text-slate-950 font-medium"
+                      ? "bg-amber-500 font-medium text-slate-950"
                       : "w-full border border-slate-800 bg-slate-950/80 text-slate-200"
                   }`}
                 >
