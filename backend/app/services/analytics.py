@@ -118,10 +118,6 @@ def get_top_bowlers(season: Optional[int] = None, limit: int = 10) -> list[dict]
 
 
 def get_player_consistency(min_seasons: int = 6, min_total_runs: int = 2000, limit: int = 10) -> list[dict]:
-    """
-    Measures batter season-to-season consistency using Coefficient of Variation (CV = std / mean).
-    Lower CV indicates more consistent run production across seasons.
-    """
     sql = """
         SELECT player_name, season, SUM(runs) AS season_runs
         FROM public.fact_player_batting_season
@@ -192,31 +188,17 @@ def get_head_to_head(team_a: str, team_b: str) -> dict:
 
 
 def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
-    """
-    Returns comprehensive franchise stats for a specific team, optionally filtered by season:
-    record, win %, highest team score, most runs, most wickets, best batting SR,
-    best bowling SR, best economy, emerging/debut performer, and top 5 batters & bowlers.
-    """
     season_filter = "AND season = :season" if season is not None else ""
     b_season_filter = "AND b.season = :season" if season is not None else ""
     params = {"team": team_name, "season": season}
 
-    # 1. Overall record & scoring stats
     summary_sql = f"""
         WITH team_games AS (
-            SELECT
-                season,
-                winner,
-                'bat_first' AS role,
-                innings_1_runs AS team_runs
+            SELECT season, winner, 'bat_first' AS role, innings_1_runs AS team_runs
             FROM public.fact_matches
             WHERE team_1 = :team {season_filter}
             UNION ALL
-            SELECT
-                season,
-                winner,
-                'chase' AS role,
-                innings_2_runs AS team_runs
+            SELECT season, winner, 'chase' AS role, innings_2_runs AS team_runs
             FROM public.fact_matches
             WHERE team_2 = :team {season_filter}
         )
@@ -233,7 +215,6 @@ def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
     summary_rows = _query_to_dicts(summary_sql, params)
     summary = summary_rows[0] if summary_rows else {}
 
-    # 2. Top 5 Batters (also gives Most Runs)
     top_batters_sql = f"""
         SELECT
             player_name,
@@ -251,7 +232,6 @@ def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
     """
     top_batters = _query_to_dicts(top_batters_sql, params)
 
-    # 3. Top 5 Bowlers (also gives Most Wickets)
     top_bowlers_sql = f"""
         SELECT
             player_name,
@@ -269,7 +249,6 @@ def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
     """
     top_bowlers = _query_to_dicts(top_bowlers_sql, params)
 
-    # 4. Best Batting Strike Rate (min 30 balls in a single season, min 100 all-time)
     min_balls = 30 if season is not None else 100
     best_bat_sr_sql = f"""
         SELECT
@@ -288,7 +267,6 @@ def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
     if not best_bat_sr_rows:
         best_bat_sr_rows = _query_to_dicts(best_bat_sr_sql, {**params, "min_balls": 10})
 
-    # 5. Best Bowling Strike Rate (min 3 wickets in a season, min 10 all-time)
     min_wkts = 3 if season is not None else 10
     best_bowl_sr_sql = f"""
         SELECT
@@ -306,7 +284,6 @@ def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
     if not best_bowl_sr_rows:
         best_bowl_sr_rows = _query_to_dicts(best_bowl_sr_sql, {**params, "min_wkts": 1})
 
-    # 6. Best Bowling Economy (min 24 legal balls in a season, min 120 all-time)
     min_legal_balls = 24 if season is not None else 120
     best_econ_sql = f"""
         SELECT
@@ -325,7 +302,6 @@ def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
     if not best_econ_rows:
         best_econ_rows = _query_to_dicts(best_econ_sql, {**params, "min_legal_balls": 6})
 
-    # 7. Emerging / Debut Performer (highest run-scorer playing their first-ever IPL season)
     emerging_sql = f"""
         WITH debut_seasons AS (
             SELECT player_name, MIN(season) AS debut_season
@@ -365,23 +341,46 @@ def get_team_details(team_name: str, season: Optional[int] = None) -> dict:
 # 4. VENUE & MATCH ANALYTICS
 # ============================================================================
 
-def get_venue_analytics(min_matches: int = 10, limit: int = 15) -> list[dict]:
+def get_venue_analytics(season: Optional[int] = None, min_matches: int = 1, limit: int = 40) -> list[dict]:
+    if season is None:
+        sql = """
+            SELECT
+                venue,
+                total_matches,
+                avg_first_innings_score,
+                highest_first_innings_score,
+                lowest_first_innings_score,
+                bat_first_wins,
+                chase_wins,
+                chase_win_pct
+            FROM public.fact_venue_stats
+            WHERE total_matches >= :min_matches
+            ORDER BY total_matches DESC
+            LIMIT :limit
+        """
+        return _query_to_dicts(sql, {"min_matches": min_matches, "limit": limit})
+
     sql = """
         SELECT
             venue,
-            total_matches,
-            avg_first_innings_score,
-            highest_first_innings_score,
-            lowest_first_innings_score,
-            bat_first_wins,
-            chase_wins,
-            chase_win_pct
-        FROM public.fact_venue_stats
-        WHERE total_matches >= :min_matches
-        ORDER BY total_matches DESC
+            COUNT(*) AS total_matches,
+            ROUND(AVG(innings_1_runs)::numeric, 2) AS avg_first_innings_score,
+            MAX(innings_1_runs) AS highest_first_innings_score,
+            MIN(innings_1_runs) AS lowest_first_innings_score,
+            SUM(CASE WHEN win_type = 'runs' THEN 1 ELSE 0 END) AS bat_first_wins,
+            SUM(CASE WHEN win_type = 'wickets' THEN 1 ELSE 0 END) AS chase_wins,
+            ROUND(
+                (SUM(CASE WHEN win_type = 'wickets' THEN 1 ELSE 0 END)::numeric /
+                 NULLIF(SUM(CASE WHEN win_type IN ('runs', 'wickets') THEN 1 ELSE 0 END), 0)) * 100,
+                2
+            ) AS chase_win_pct
+        FROM public.fact_matches
+        WHERE season = :season
+        GROUP BY venue
+        ORDER BY total_matches DESC, avg_first_innings_score DESC
         LIMIT :limit
     """
-    return _query_to_dicts(sql, {"min_matches": min_matches, "limit": limit})
+    return _query_to_dicts(sql, {"season": season, "limit": limit})
 
 
 def get_extreme_matches(limit: int = 5) -> dict:
@@ -411,12 +410,6 @@ def get_extreme_matches(limit: int = 5) -> dict:
 # ============================================================================
 
 def run_statistical_investigations() -> dict:
-    """
-    Performs formal statistical hypothesis testing on IPL historical data:
-    1. Chasing vs Batting First Advantage (Two-sided Exact Binomial Test)
-    2. First-Innings Score vs. Defending Win Probability (Point-Biserial Correlation)
-    3. Modern Era (2018-2026) vs Early Era (2008-2017) Scoring Shift (Welch's t-test)
-    """
     sql = """
         SELECT season, innings_1_runs, win_type
         FROM public.fact_matches

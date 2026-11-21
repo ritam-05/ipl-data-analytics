@@ -1,186 +1,270 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
 } from "recharts";
-import { Bot, TrendingUp } from "lucide-react";
 
-interface OverviewData {
-  total_seasons: number;
-  total_matches: number;
-  total_players: number;
-  total_teams: number;
-  total_venues: number;
-  avg_first_innings_score: number;
-  highest_team_score: number;
-}
-
-interface SeasonTrend {
-  season: number;
+interface VenueRow {
+  venue: string;
   total_matches: number;
   avg_first_innings_score: number;
-  avg_second_innings_score: number;
-  highest_score: number;
+  highest_first_innings_score: number;
+  lowest_first_innings_score: number;
+  bat_first_wins: number;
+  chase_wins: number;
+  chase_win_pct: number | null;
 }
 
-interface StatsData {
-  chasing_advantage_test: {
-    chase_win_pct: number;
-    p_value: number;
-    statistically_significant_at_0_05: boolean;
-  };
-  scoring_era_shift_test: {
-    early_era_2008_2017_avg: number;
-    modern_era_2018_2026_avg: number;
-    difference_runs: number;
-    p_value: number;
-  };
-}
+const SEASONS = Array.from({ length: 19 }, (_, i) => 2026 - i);
+const PIE_COLORS = ["#f59e0b", "#38bdf8"];
 
-export default function OverviewPage() {
-  const [overview, setOverview] = useState<OverviewData | null>(null);
-  const [seasons, setSeasons] = useState<SeasonTrend[]>([]);
-  const [stats, setStats] = useState<StatsData | null>(null);
+export default function VenuesPage() {
+  const [season, setSeason] = useState<string>("all");
+  const [venues, setVenues] = useState<VenueRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      apiFetch<OverviewData>("/api/analytics/overview"),
-      apiFetch<SeasonTrend[]>("/api/analytics/seasons"),
-      apiFetch<StatsData>("/api/analytics/stats"),
-    ])
-      .then(([ov, sz, st]) => {
-        setOverview(ov);
-        setSeasons(sz);
-        setStats(st);
-      })
-      .catch((err) => setError(err.message));
-  }, []);
+    setLoading(true);
+    setError(null);
+    const param = season === "all" ? "?limit=40" : `?season=${season}&limit=40`;
+    apiFetch<VenueRow[]>(`/api/analytics/venues${param}`)
+      .then(setVenues)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [season]);
 
-  if (error) {
-    return (
-      <div className="rounded-xl border border-red-800 bg-red-950/40 p-6 text-sm text-red-300">
-        Failed to load IPL analytics from backend: {error}. Make sure FastAPI is running on port 7860.
-      </div>
-    );
-  }
+  const totalMatches = venues.reduce((sum, v) => sum + v.total_matches, 0);
+  const totalBatFirstWins = venues.reduce((sum, v) => sum + v.bat_first_wins, 0);
+  const totalChaseWins = venues.reduce((sum, v) => sum + v.chase_wins, 0);
+  const totalDecided = totalBatFirstWins + totalChaseWins;
+  const overallChasePct =
+    totalDecided > 0 ? ((totalChaseWins / totalDecided) * 100).toFixed(1) : "0.0";
 
-  if (!overview) {
-    return (
-      <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-        Loading live Know IPL data (waking up API if sleeping)...
-      </div>
-    );
-  }
-
-  const kpis = [
-    { label: "Seasons", value: overview.total_seasons },
-    { label: "Matches", value: overview.total_matches.toLocaleString() },
-    { label: "Players", value: overview.total_players.toLocaleString() },
-    { label: "Venues", value: overview.total_venues },
-    { label: "Avg 1st Innings", value: overview.avg_first_innings_score },
-    { label: "Highest Total", value: overview.highest_team_score },
+  const pieData = [
+    { name: "Bat First Wins", value: totalBatFirstWins },
+    { name: "Chase Wins", value: totalChaseWins },
   ];
 
+  const topScoringVenues = [...venues]
+    .sort((a, b) => b.avg_first_innings_score - a.avg_first_innings_score)
+    .slice(0, 10);
+
   return (
-    <div className="space-y-8">
-      <section className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 sm:flex-row sm:items-center">
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Know IPL</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Historical IPL Data Warehouse (2008–2026), Statistical Analytics &amp; Agentic AI Assistant.
+          <h1 className="text-2xl font-bold text-white">Venue Analytics</h1>
+          <p className="text-sm text-slate-400">
+            Standardized stadium profiles, scoring averages, and chasing vs. defending splits.
           </p>
         </div>
-        <Link
-          href="/assistant"
-          className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-400"
+
+        <select
+          value={season}
+          onChange={(e) => setSeason(e.target.value)}
+          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white focus:border-amber-500 focus:outline-none"
         >
-          <Bot className="h-4 w-4" />
-          Ask AI Analyst
-        </Link>
-      </section>
+          <option value="all">All-Time (2008–2026)</option>
+          {SEASONS.map((yr) => (
+            <option key={yr} value={yr}>
+              IPL {yr}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <p className="text-xs font-medium text-slate-400">{kpi.label}</p>
-            <p className="mt-1 text-2xl font-bold text-white">{kpi.value}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-amber-400" />
-          <h2 className="text-lg font-semibold text-white">Scoring Evolution Across IPL Seasons</h2>
+      {error && (
+        <div className="rounded-xl border border-red-800 bg-red-950/40 p-4 text-sm text-red-300">
+          {error}
         </div>
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={seasons}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="season" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} domain={["auto", "auto"]} />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: 8 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="avg_first_innings_score"
-                name="Avg 1st Innings"
-                stroke="#f59e0b"
-                strokeWidth={2.5}
-                dot={{ r: 3 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="avg_second_innings_score"
-                name="Avg 2nd Innings"
-                stroke="#38bdf8"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+      )}
 
-      {stats && (
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <h3 className="text-sm font-semibold text-amber-400">Statistical Finding: Chasing Advantage</h3>
-            <p className="mt-2 text-2xl font-bold text-white">
-              {stats.chasing_advantage_test.chase_win_pct}% Chase Win Rate
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              Exact Binomial Test p-value: {stats.chasing_advantage_test.p_value} (
-              {stats.chasing_advantage_test.statistically_significant_at_0_05
-                ? "Statistically significant at α = 0.05"
-                : "Not statistically significant at α = 0.05"}
-              )
-            </p>
-          </div>
+      {loading ? (
+        <div className="py-12 text-center text-sm text-slate-400">Loading venue analytics...</div>
+      ) : (
+        <>
+          {/* Summary KPI Strip */}
+          <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-xs text-slate-400">Active Venues</p>
+              <p className="mt-1 text-2xl font-bold text-white">{venues.length}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-xs text-slate-400">Matches Played</p>
+              <p className="mt-1 text-2xl font-bold text-white">{totalMatches.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-xs text-slate-400">Bat First Wins</p>
+              <p className="mt-1 text-2xl font-bold text-amber-400">{totalBatFirstWins}</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-xs text-slate-400">Overall Chase Win %</p>
+              <p className="mt-1 text-2xl font-bold text-sky-400">{overallChasePct}%</p>
+            </div>
+          </section>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <h3 className="text-sm font-semibold text-sky-400">Statistical Finding: Modern Scoring Shift</h3>
-            <p className="mt-2 text-2xl font-bold text-white">
-              +{stats.scoring_era_shift_test.difference_runs} Runs / 1st Innings
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              2008–2017 Avg: {stats.scoring_era_shift_test.early_era_2008_2017_avg} vs 2018–2026 Avg:{" "}
-              {stats.scoring_era_shift_test.modern_era_2018_2026_avg} (Welch&apos;s t-test p ={" "}
-              {stats.scoring_era_shift_test.p_value})
-            </p>
+          {/* Pie Chart + Avg 1st Innings Score Bar Chart */}
+          <section className="grid gap-6 lg:grid-cols-3">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 lg:col-span-1">
+              <h2 className="mb-4 text-sm font-semibold text-slate-300">
+                Bat First vs. Chase Split
+              </h2>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={4}
+                    >
+                      {pieData.map((entry, idx) => (
+                        <Cell key={entry.name} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        borderColor: "#334155",
+                        borderRadius: 8,
+                      }}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 lg:col-span-2">
+              <h2 className="mb-4 text-sm font-semibold text-slate-300">
+                Highest Scoring Venues (Avg 1st Innings Score)
+              </h2>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topScoringVenues}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis
+                      dataKey="venue"
+                      stroke="#94a3b8"
+                      fontSize={10}
+                      interval={0}
+                      angle={-18}
+                      textAnchor="end"
+                      height={70}
+                    />
+                    <YAxis stroke="#94a3b8" fontSize={12} domain={["auto", "auto"]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        borderColor: "#334155",
+                        borderRadius: 8,
+                      }}
+                    />
+                    <Bar
+                      dataKey="avg_first_innings_score"
+                      name="Avg 1st Innings"
+                      fill="#10b981"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </section>
+
+          {/* Grouped Bar Chart: Bat First vs Chase Wins */}
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <h2 className="mb-4 text-sm font-semibold text-slate-300">
+              Bat First Wins vs. Chase Wins (Top 10 Venues by Matches)
+            </h2>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={venues.slice(0, 10)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis
+                    dataKey="venue"
+                    stroke="#94a3b8"
+                    fontSize={10}
+                    interval={0}
+                    angle={-18}
+                    textAnchor="end"
+                    height={75}
+                  />
+                  <YAxis stroke="#94a3b8" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#0f172a",
+                      borderColor: "#334155",
+                      borderRadius: 8,
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="bat_first_wins"
+                    name="Bat First Wins"
+                    fill="#f59e0b"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="chase_wins"
+                    name="Chase Wins"
+                    fill="#38bdf8"
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          {/* Full Table */}
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-800 text-xs uppercase text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">Venue</th>
+                  <th className="px-4 py-3">Matches</th>
+                  <th className="px-4 py-3">Avg 1st Inn</th>
+                  <th className="px-4 py-3">Highest</th>
+                  <th className="px-4 py-3">Lowest</th>
+                  <th className="px-4 py-3">Chase Win %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/70">
+                {venues.map((v) => (
+                  <tr key={v.venue} className="hover:bg-slate-800/40">
+                    <td className="px-4 py-3 font-medium text-white">{v.venue}</td>
+                    <td className="px-4 py-3 text-slate-300">{v.total_matches}</td>
+                    <td className="px-4 py-3 font-semibold text-amber-400">
+                      {v.avg_first_innings_score}
+                    </td>
+                    <td className="px-4 py-3 text-slate-300">{v.highest_first_innings_score}</td>
+                    <td className="px-4 py-3 text-slate-300">{v.lowest_first_innings_score}</td>
+                    <td className="px-4 py-3 font-semibold text-sky-400">
+                      {v.chase_win_pct !== null ? `${v.chase_win_pct}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </section>
+        </>
       )}
     </div>
   );

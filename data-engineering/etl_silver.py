@@ -30,6 +30,38 @@ TEAM_NAME_MAPPING = {
     "Rising Pune Supergiants": "Rising Pune Supergiant",
 }
 
+# Canonical venue name mapping (merges renamed stadiums & city-suffix duplicates)
+VENUE_NAME_MAPPING = {
+    "Eden Gardens": "Eden Gardens, Kolkata",
+    "Wankhede Stadium": "Wankhede Stadium, Mumbai",
+    "M Chinnaswamy Stadium": "M Chinnaswamy Stadium, Bengaluru",
+    "M.Chinnaswamy Stadium": "M Chinnaswamy Stadium, Bengaluru",
+    "M Chinnaswamy Stadium, Bangalore": "M Chinnaswamy Stadium, Bengaluru",
+    "Feroz Shah Kotla": "Arun Jaitley Stadium, Delhi",
+    "Feroz Shah Kotla, Delhi": "Arun Jaitley Stadium, Delhi",
+    "Arun Jaitley Stadium": "Arun Jaitley Stadium, Delhi",
+    "Rajiv Gandhi International Stadium, Uppal": "Rajiv Gandhi International Stadium, Uppal, Hyderabad",
+    "Rajiv Gandhi International Stadium": "Rajiv Gandhi International Stadium, Uppal, Hyderabad",
+    "MA Chidambaram Stadium, Chepauk": "MA Chidambaram Stadium, Chepauk, Chennai",
+    "MA Chidambaram Stadium": "MA Chidambaram Stadium, Chepauk, Chennai",
+    "Sawai Mansingh Stadium": "Sawai Mansingh Stadium, Jaipur",
+    "Sardar Patel Stadium, Motera": "Narendra Modi Stadium, Ahmedabad",
+    "Narendra Modi Stadium": "Narendra Modi Stadium, Ahmedabad",
+    "Punjab Cricket Association Stadium, Mohali": "Punjab Cricket Association IS Bindra Stadium, Mohali",
+    "Punjab Cricket Association IS Bindra Stadium, Mohali, Chandigarh": "Punjab Cricket Association IS Bindra Stadium, Mohali",
+    "Punjab Cricket Association IS Bindra Stadium": "Punjab Cricket Association IS Bindra Stadium, Mohali",
+    "Maharashtra Cricket Association Stadium": "Maharashtra Cricket Association Stadium, Pune",
+    "Subrata Roy Sahara Stadium": "Maharashtra Cricket Association Stadium, Pune",
+    "Dr DY Patil Sports Academy": "Dr DY Patil Sports Academy, Mumbai",
+    "Brabourne Stadium": "Brabourne Stadium, Mumbai",
+    "Sheikh Zayed Stadium": "Zayed Cricket Stadium, Abu Dhabi",
+    "Himachal Pradesh Cricket Association Stadium": "Himachal Pradesh Cricket Association Stadium, Dharamsala",
+    "Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium": "Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium, Visakhapatnam",
+    "Barsapara Cricket Stadium": "Barsapara Cricket Stadium, Guwahati",
+    "Holkar Cricket Stadium": "Holkar Cricket Stadium, Indore",
+    "Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh": "Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur",
+}
+
 
 def build_silver_layer():
     logger.info("Initializing PySpark Session...")
@@ -62,13 +94,14 @@ def build_silver_layer():
     row_count = df_raw.count()
     logger.info(f"Total unique ball-by-ball rows extracted: {row_count:,}")
 
-    # 2. TRANSFORM: Clean data, normalize season, standardize team names, and enforce integer types
-    logger.info("Applying transformations (normalizing seasons, standardizing team names, casting integers, filling nulls)...")
+    # 2. TRANSFORM: Clean data, normalize season, standardize team & venue names, cast integers
+    logger.info("Applying transformations (normalizing seasons, teams, venues, and integer types)...")
 
     df_clean = df_raw.withColumn("match_id", col("match_id").cast(IntegerType()))
 
-    # Standardize renamed IPL franchise names
+    # Standardize renamed IPL franchise names and stadium names
     df_clean = df_clean.replace(TEAM_NAME_MAPPING, subset=["batting_team", "bowling_team"])
+    df_clean = df_clean.replace(VENUE_NAME_MAPPING, subset=["venue"])
 
     # Normalize Cricsheet's 3 slash-formatted seasons to calendar year integers
     df_clean = df_clean.withColumn(

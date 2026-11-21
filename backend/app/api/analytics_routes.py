@@ -92,11 +92,11 @@ def team_details(
 
 @router.get("/venues")
 def venues(
-    min_matches: int = Query(default=10, ge=1),
-    limit: int = Query(default=20, ge=1, le=60),
+    season: Optional[int] = Query(default=None, description="Filter by IPL season year"),
+    limit: int = Query(default=40, ge=1, le=60),
     _user: dict = Depends(get_current_user),
 ):
-    return get_venue_analytics(min_matches=min_matches, limit=limit)
+    return get_venue_analytics(season=season, limit=limit)
 
 
 @router.get("/matches/extremes")
