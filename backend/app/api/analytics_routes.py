@@ -7,6 +7,7 @@ from backend.app.services.analytics import (
     get_top_batters,
     get_top_bowlers,
     get_player_consistency,
+    get_all_players_directory,
     get_team_performance,
     get_head_to_head,
     get_team_details,
@@ -61,6 +62,22 @@ def player_consistency(
         min_seasons=min_seasons,
         min_total_runs=min_total_runs,
         limit=limit,
+    )
+
+
+@router.get("/players/all")
+def all_players_directory(
+    season: Optional[int] = Query(default=None, description="Filter by IPL season year"),
+    search: Optional[str] = Query(default=None, description="Filter by player name"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    _user: dict = Depends(get_current_user),
+):
+    return get_all_players_directory(
+        season=season,
+        search=search,
+        limit=limit,
+        offset=offset,
     )
 
 

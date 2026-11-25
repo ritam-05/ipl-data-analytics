@@ -11,7 +11,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { Search } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface BatterRow {
   player_name: string;
@@ -45,22 +45,70 @@ interface ConsistencyRow {
   cv: number;
 }
 
+interface PlayerDirectoryRow {
+  player_name: string;
+  matches: number;
+  runs: number;
+  balls_faced: number;
+  fours: number;
+  sixes: number;
+  highest_score: number;
+  batting_average: number | null;
+  batting_sr: number | null;
+  wickets: number;
+  runs_conceded: number;
+  overs: number;
+  economy_rate: number | null;
+  bowling_average: number | null;
+  bowling_sr: number | null;
+}
+
+interface PlayerDirectoryResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  players: PlayerDirectoryRow[];
+}
+
 const SEASONS = Array.from({ length: 19 }, (_, i) => 2026 - i);
+const PAGE_SIZE = 50;
 
 export default function PlayersPage() {
-  const [tab, setTab] = useState<"batters" | "bowlers" | "consistency">("batters");
+  const [tab, setTab] = useState<"batters" | "bowlers" | "consistency" | "all">("batters");
   const [season, setSeason] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [batters, setBatters] = useState<BatterRow[]>([]);
   const [bowlers, setBowlers] = useState<BowlerRow[]>([]);
   const [consistency, setConsistency] = useState<ConsistencyRow[]>([]);
+  const [directory, setDirectory] = useState<PlayerDirectoryRow[]>([]);
+  const [totalPlayers, setTotalPlayers] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPage(0);
+  }, [season, search, tab]);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     const seasonParam = season === "all" ? "" : `&season=${season}`;
+
+    if (tab === "all") {
+      const offset = page * PAGE_SIZE;
+      const searchParam = search.trim() ? `&search=${encodeURIComponent(search.trim())}` : "";
+      apiFetch<PlayerDirectoryResponse>(
+        `/api/analytics/players/all?limit=${PAGE_SIZE}&offset=${offset}${seasonParam}${searchParam}`
+      )
+        .then((res) => {
+          setDirectory(res.players);
+          setTotalPlayers(res.total);
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+      return;
+    }
 
     Promise.all([
       apiFetch<BatterRow[]>(`/api/analytics/players/batters?limit=30${seasonParam}`),
@@ -76,7 +124,7 @@ export default function PlayersPage() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [season]);
+  }, [season, tab, page, search]);
 
   const q = search.trim().toLowerCase();
   const filteredBatters = batters.filter((b) => b.player_name.toLowerCase().includes(q));
@@ -90,13 +138,15 @@ export default function PlayersPage() {
       ? filteredBowlers.slice(0, 10)
       : filteredConsistency.slice(0, 10);
 
+  const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold text-white">Player Analytics</h1>
           <p className="text-sm text-slate-400">
-            Batting leaders, bowling leaders, and season-to-season consistency (Coefficient of Variation).
+            Batting leaders, bowling leaders, consistency (CV), and complete player career stats.
           </p>
         </div>
 
@@ -129,20 +179,47 @@ export default function PlayersPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-800 pb-3">
-        {(["batters", "bowlers", "consistency"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition ${
-              tab === t
-                ? "bg-amber-500 text-slate-950"
-                : "bg-slate-900 text-slate-300 hover:bg-slate-800"
-            }`}
-          >
-            {t === "consistency" ? "Consistency (CV)" : `Top ${t}`}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
+        <button
+          onClick={() => setTab("batters")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === "batters"
+              ? "bg-amber-500 text-slate-950"
+              : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+          }`}
+        >
+          Top Batters
+        </button>
+        <button
+          onClick={() => setTab("bowlers")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === "bowlers"
+              ? "bg-amber-500 text-slate-950"
+              : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+          }`}
+        >
+          Top Bowlers
+        </button>
+        <button
+          onClick={() => setTab("consistency")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === "consistency"
+              ? "bg-amber-500 text-slate-950"
+              : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+          }`}
+        >
+          Consistency (CV)
+        </button>
+        <button
+          onClick={() => setTab("all")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            tab === "all"
+              ? "bg-amber-500 text-slate-950"
+              : "bg-slate-900 text-slate-300 hover:bg-slate-800"
+          }`}
+        >
+          Player Stats
+        </button>
       </div>
 
       {error && (
@@ -153,6 +230,84 @@ export default function PlayersPage() {
 
       {loading ? (
         <div className="py-16 text-center text-sm text-slate-400">Loading player analytics...</div>
+      ) : tab === "all" ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+            <span>
+              Showing <strong className="text-white">{directory.length}</strong> of{" "}
+              <strong className="text-amber-400">{totalPlayers.toLocaleString()}</strong> IPL players
+              {season !== "all" ? ` in IPL ${season}` : " across all seasons"}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Prev
+              </button>
+              <span className="px-2 text-slate-300">
+                Page {page + 1} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page + 1 >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-800 bg-slate-900/90 uppercase text-slate-400">
+                <tr>
+                  <th className="sticky left-0 bg-slate-900 px-3 py-3 text-white">Player</th>
+                  <th className="px-3 py-3">Mat</th>
+                  <th className="px-3 py-3 text-amber-400">Runs</th>
+                  <th className="px-3 py-3">Bat Avg</th>
+                  <th className="px-3 py-3">Bat SR</th>
+                  <th className="px-3 py-3">4s</th>
+                  <th className="px-3 py-3">6s</th>
+                  <th className="px-3 py-3">HS</th>
+                  <th className="px-3 py-3 text-sky-400">Wkts</th>
+                  <th className="px-3 py-3">Overs</th>
+                  <th className="px-3 py-3">Econ</th>
+                  <th className="px-3 py-3">Bowl Avg</th>
+                  <th className="px-3 py-3">Bowl SR</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/70">
+                {directory.map((p) => (
+                  <tr key={p.player_name} className="hover:bg-slate-800/40">
+                    <td className="sticky left-0 bg-slate-950/95 px-3 py-2.5 font-medium text-white">
+                      {p.player_name}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.matches}</td>
+                    <td className="px-3 py-2.5 font-semibold text-amber-400">
+                      {p.runs.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.batting_average ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.batting_sr ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.fours}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.sixes}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.highest_score}</td>
+                    <td className="px-3 py-2.5 font-semibold text-sky-400">{p.wickets}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.overs}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.economy_rate ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.bowling_average ?? "—"}</td>
+                    <td className="px-3 py-2.5 text-slate-300">{p.bowling_sr ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         <>
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">

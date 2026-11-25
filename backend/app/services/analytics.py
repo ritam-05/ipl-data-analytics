@@ -146,6 +146,123 @@ def get_player_consistency(min_seasons: int = 6, min_total_runs: int = 2000, lim
     return result.to_dict(orient="records")
 
 
+def get_all_players_directory(
+    season: Optional[int] = None,
+    search: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    """
+    Returns combined batting and bowling statistics for every IPL player in history
+    (or for a specific season), with optional name search and pagination.
+    """
+    bat_where = "WHERE season = :season" if season is not None else ""
+    bowl_where = "WHERE season = :season" if season is not None else ""
+
+    if season is None:
+        base_players_cte = """
+            all_player_names AS (
+                SELECT player_name FROM public.dim_players
+                UNION
+                SELECT player_name FROM public.fact_player_batting_season
+                UNION
+                SELECT player_name FROM public.fact_player_bowling_season
+            ),
+        """
+    else:
+        base_players_cte = """
+            all_player_names AS (
+                SELECT player_name FROM public.fact_player_batting_season WHERE season = :season
+                UNION
+                SELECT player_name FROM public.fact_player_bowling_season WHERE season = :season
+            ),
+        """
+
+    search_filter = "WHERE p.player_name ILIKE :search_pattern" if search and search.strip() else ""
+    search_pattern = f"%{search.strip()}%" if search and search.strip() else None
+
+    sql = f"""
+        WITH
+        {base_players_cte}
+        bat_agg AS (
+            SELECT
+                player_name,
+                SUM(matches) AS bat_matches,
+                SUM(runs) AS runs,
+                SUM(balls_faced) AS balls_faced,
+                SUM(fours) AS fours,
+                SUM(sixes) AS sixes,
+                MAX(highest_score) AS highest_score,
+                ROUND((SUM(runs)::numeric / NULLIF(SUM(dismissals), 0)), 2) AS batting_average,
+                ROUND((SUM(runs)::numeric / NULLIF(SUM(balls_faced), 0)) * 100, 2) AS batting_sr
+            FROM public.fact_player_batting_season
+            {bat_where}
+            GROUP BY player_name
+        ),
+        bowl_agg AS (
+            SELECT
+                player_name,
+                SUM(matches) AS bowl_matches,
+                SUM(wickets) AS wickets,
+                SUM(runs_conceded) AS runs_conceded,
+                ROUND((SUM(legal_balls)::numeric / 6.0), 1) AS overs,
+                ROUND((SUM(runs_conceded)::numeric / NULLIF(SUM(legal_balls), 0)) * 6.0, 2) AS economy_rate,
+                ROUND((SUM(runs_conceded)::numeric / NULLIF(SUM(wickets), 0)), 2) AS bowling_average,
+                ROUND((SUM(legal_balls)::numeric / NULLIF(SUM(wickets), 0)), 2) AS bowling_sr
+            FROM public.fact_player_bowling_season
+            {bowl_where}
+            GROUP BY player_name
+        ),
+        combined AS (
+            SELECT
+                p.player_name,
+                GREATEST(COALESCE(bt.bat_matches, 0), COALESCE(bw.bowl_matches, 0)) AS matches,
+                COALESCE(bt.runs, 0) AS runs,
+                COALESCE(bt.balls_faced, 0) AS balls_faced,
+                COALESCE(bt.fours, 0) AS fours,
+                COALESCE(bt.sixes, 0) AS sixes,
+                COALESCE(bt.highest_score, 0) AS highest_score,
+                bt.batting_average,
+                bt.batting_sr,
+                COALESCE(bw.wickets, 0) AS wickets,
+                COALESCE(bw.runs_conceded, 0) AS runs_conceded,
+                COALESCE(bw.overs, 0) AS overs,
+                bw.economy_rate,
+                bw.bowling_average,
+                bw.bowling_sr
+            FROM all_player_names p
+            LEFT JOIN bat_agg bt ON p.player_name = bt.player_name
+            LEFT JOIN bowl_agg bw ON p.player_name = bw.player_name
+            {search_filter}
+        )
+        SELECT
+            *,
+            COUNT(*) OVER() AS total_count
+        FROM combined
+        ORDER BY runs DESC, wickets DESC, player_name ASC
+        LIMIT :limit OFFSET :offset
+    """
+    rows = _query_to_dicts(
+        sql,
+        {
+            "season": season,
+            "search_pattern": search_pattern,
+            "limit": limit,
+            "offset": offset,
+        },
+    )
+
+    total_count = int(rows[0]["total_count"]) if rows else 0
+    clean_rows = [{k: v for k, v in r.items() if k != "total_count"} for r in rows]
+
+    return {
+        "total": total_count,
+        "limit": limit,
+        "offset": offset,
+        "players": clean_rows,
+    }
+
+
 # ============================================================================
 # 3. TEAM ANALYTICS
 # ============================================================================
