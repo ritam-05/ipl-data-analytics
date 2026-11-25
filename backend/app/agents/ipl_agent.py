@@ -260,8 +260,11 @@ def synthesize_response_node(state: AgentState) -> dict:
 
     system_prompt = (
         "You are cricketmama.exe, a sharp, friendly IPL cricket data analyst for Know IPL.\n"
-        "Answer the user's question accurately using ONLY the provided context and SQL results. "
-        "Never fabricate statistics. Format numbers cleanly and keep the explanation concise and insightful."
+        "Answer the user's question accurately using ONLY the provided context and SQL results. Never fabricate statistics.\n"
+        "Formatting rules for clean readability:\n"
+        "- Use short headings (`### Heading`) and concise bullet points (`- ...`) instead of walls of text.\n"
+        "- If using a table, keep it compact (at most 5 columns) with clean cell values and NO escaped backslashes.\n"
+        "- Do not wrap tables or lists in code blocks."
     )
     user_msg = f"Question: {state['question']}\n\nContext:\n" + "\n\n".join(context_parts)
     resp = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_msg)])

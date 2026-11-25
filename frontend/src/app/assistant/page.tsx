@@ -5,7 +5,17 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
 import DynamicChart, { ChartSpec } from "@/components/DynamicChart";
-import { Bot, Send, Plus, Bookmark, Code2, MessageSquare, Check } from "lucide-react";
+import AssistantMessageBody from "@/components/AssistantMessageBody";
+import {
+  Bot,
+  Send,
+  Plus,
+  Bookmark,
+  Code2,
+  MessageSquare,
+  Check,
+  Trash2,
+} from "lucide-react";
 
 interface ChatSession {
   id: string;
@@ -45,6 +55,7 @@ export default function AssistantPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedIndices, setSavedIndices] = useState<Record<number, boolean>>({});
 
@@ -80,6 +91,27 @@ export default function AssistantPage() {
       setMessages(msgs);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load messages.");
+    }
+  }
+
+  async function handleDeleteSession(e: React.MouseEvent, sessionId: string) {
+    e.stopPropagation();
+    if (deletingId) return;
+    setDeletingId(sessionId);
+    setError(null);
+
+    try {
+      await apiFetch(`/api/chat/sessions/${sessionId}`, { method: "DELETE" }, true);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(null);
+        setMessages([]);
+        setSavedIndices({});
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete session.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -203,18 +235,30 @@ export default function AssistantPage() {
             <p className="px-2 py-4 text-xs text-slate-500">No saved chats yet.</p>
           ) : (
             sessions.map((s) => (
-              <button
+              <div
                 key={s.id}
                 onClick={() => selectSession(s.id)}
-                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition ${
+                className={`group flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition ${
                   activeSessionId === s.id
                     ? "bg-amber-500/15 text-amber-400"
                     : "text-slate-300 hover:bg-slate-800/70"
                 }`}
               >
-                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{s.title}</span>
-              </button>
+                <div className="flex min-w-0 items-center gap-2">
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{s.title}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteSession(e, s.id)}
+                  disabled={deletingId === s.id}
+                  title="Delete session permanently"
+                  aria-label="Delete session permanently"
+                  className="shrink-0 rounded p-1 text-slate-400 opacity-70 transition hover:bg-red-500/20 hover:text-red-400 group-hover:opacity-100 disabled:opacity-40"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -254,7 +298,11 @@ export default function AssistantPage() {
                       : "w-full border border-slate-800 bg-slate-950/80 text-slate-200"
                   }`}
                 >
-                  <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
+                  {m.role === "user" ? (
+                    <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
+                  ) : (
+                    <AssistantMessageBody content={m.content} />
+                  )}
 
                   {m.role === "assistant" && m.chart_spec && (
                     <DynamicChart spec={m.chart_spec} />
