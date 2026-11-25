@@ -55,6 +55,14 @@ def get_ipl_overview() -> dict:
 
 def get_season_trends() -> list[dict]:
     sql = """
+        WITH season_boundaries AS (
+            SELECT
+                season,
+                COALESCE(SUM(fours), 0) AS total_fours,
+                COALESCE(SUM(sixes), 0) AS total_sixes
+            FROM public.fact_player_batting_season
+            GROUP BY season
+        )
         SELECT
             m.season,
             COUNT(*) AS total_matches,
@@ -62,10 +70,25 @@ def get_season_trends() -> list[dict]:
             ROUND(AVG(m.innings_2_runs)::numeric, 2) AS avg_second_innings_score,
             MAX(GREATEST(COALESCE(m.innings_1_runs, 0), COALESCE(m.innings_2_runs, 0))) AS highest_score,
             SUM(CASE WHEN m.win_type = 'wickets' THEN 1 ELSE 0 END) AS chase_wins,
-            SUM(CASE WHEN m.win_type = 'runs' THEN 1 ELSE 0 END) AS bat_first_wins
+            SUM(CASE WHEN m.win_type = 'runs' THEN 1 ELSE 0 END) AS bat_first_wins,
+            COALESCE(sb.total_fours, 0) AS total_fours,
+            COALESCE(sb.total_sixes, 0) AS total_sixes
         FROM public.fact_matches m
-        GROUP BY m.season
+        LEFT JOIN season_boundaries sb ON m.season = sb.season
+        GROUP BY m.season, sb.total_fours, sb.total_sixes
         ORDER BY m.season ASC
+    """
+    return _query_to_dicts(sql)
+
+
+def get_win_type_breakdown() -> list[dict]:
+    sql = """
+        SELECT
+            COALESCE(NULLIF(TRIM(win_type), ''), 'no_result') AS win_type,
+            COUNT(*) AS match_count
+        FROM public.fact_matches
+        GROUP BY COALESCE(NULLIF(TRIM(win_type), ''), 'no_result')
+        ORDER BY match_count DESC
     """
     return _query_to_dicts(sql)
 
@@ -74,7 +97,7 @@ def get_season_trends() -> list[dict]:
 # 2. PLAYER ANALYTICS
 # ============================================================================
 
-def get_top_batters(season: Optional[int] = None, limit: int = 10) -> list[dict]:
+def get_top_batters(season: Optional[int] = None, limit: int = 15) -> list[dict]:
     where_clause = "WHERE season = :season" if season is not None else ""
     sql = f"""
         SELECT
@@ -96,7 +119,7 @@ def get_top_batters(season: Optional[int] = None, limit: int = 10) -> list[dict]
     return _query_to_dicts(sql, {"season": season, "limit": limit})
 
 
-def get_top_bowlers(season: Optional[int] = None, limit: int = 10) -> list[dict]:
+def get_top_bowlers(season: Optional[int] = None, limit: int = 15) -> list[dict]:
     where_clause = "WHERE season = :season" if season is not None else ""
     sql = f"""
         SELECT
@@ -152,10 +175,6 @@ def get_all_players_directory(
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
-    """
-    Returns combined batting and bowling statistics for every IPL player in history
-    (or for a specific season), with optional name search and pagination.
-    """
     bat_where = "WHERE season = :season" if season is not None else ""
     bowl_where = "WHERE season = :season" if season is not None else ""
 

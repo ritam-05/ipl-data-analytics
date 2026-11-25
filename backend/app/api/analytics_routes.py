@@ -4,6 +4,7 @@ from backend.app.core.auth import get_current_user
 from backend.app.services.analytics import (
     get_ipl_overview,
     get_season_trends,
+    get_win_type_breakdown,
     get_top_batters,
     get_top_bowlers,
     get_player_consistency,
@@ -31,6 +32,11 @@ def overview(_user: dict = Depends(get_current_user)):
 @router.get("/seasons")
 def seasons(_user: dict = Depends(get_current_user)):
     return get_season_trends()
+
+
+@router.get("/win-types")
+def win_types(_user: dict = Depends(get_current_user)):
+    return get_win_type_breakdown()
 
 
 @router.get("/players/batters")

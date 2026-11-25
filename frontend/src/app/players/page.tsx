@@ -6,10 +6,13 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  ComposedChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
 } from "recharts";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -131,12 +134,25 @@ export default function PlayersPage() {
   const filteredBowlers = bowlers.filter((b) => b.player_name.toLowerCase().includes(q));
   const filteredConsistency = consistency.filter((c) => c.player_name.toLowerCase().includes(q));
 
-  const chartData: Array<BatterRow | BowlerRow | ConsistencyRow> =
-    tab === "batters"
-      ? filteredBatters.slice(0, 10)
-      : tab === "bowlers"
-      ? filteredBowlers.slice(0, 10)
-      : filteredConsistency.slice(0, 10);
+  const runDistributionData = filteredBatters.slice(0, 15).map((b) => {
+    const fourRuns = b.fours * 4;
+    const sixRuns = b.sixes * 6;
+    const runningRuns = Math.max(0, b.total_runs - fourRuns - sixRuns);
+    return {
+      player_name: b.player_name,
+      running_runs: runningRuns,
+      sixes_runs: sixRuns,
+      fours_runs: fourRuns,
+      total_runs: b.total_runs,
+      strike_rate: b.strike_rate,
+    };
+  });
+
+  const runsAndSrData = filteredBatters.slice(0, 10).map((b) => ({
+    player_name: b.player_name,
+    total_runs: b.total_runs,
+    strike_rate: b.strike_rate,
+  }));
 
   const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
 
@@ -308,17 +324,15 @@ export default function PlayersPage() {
             </table>
           </div>
         </div>
-      ) : (
+      ) : tab === "consistency" ? (
         <>
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <h2 className="mb-4 text-sm font-semibold text-slate-300">
-              {tab === "batters" && "Top 10 Run Scorers"}
-              {tab === "bowlers" && "Top 10 Wicket Takers"}
-              {tab === "consistency" && "Most Consistent Batters (Lower CV = More Consistent)"}
+              Most Consistent Batters (Lower CV = More Consistent)
             </h2>
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
+                <BarChart data={filteredConsistency.slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis
                     dataKey="player_name"
@@ -337,32 +351,194 @@ export default function PlayersPage() {
                       borderRadius: 8,
                     }}
                   />
-                  {tab === "batters" && (
-                    <Bar dataKey="total_runs" name="Runs" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  )}
-                  {tab === "bowlers" && (
-                    <Bar
-                      dataKey="total_wickets"
-                      name="Wickets"
-                      fill="#38bdf8"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  )}
-                  {tab === "consistency" && (
-                    <Bar
-                      dataKey="cv"
-                      name="CV (Lower is better)"
-                      fill="#10b981"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  )}
+                  <Bar dataKey="cv" name="CV (Lower is better)" fill="#10b981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
-            {tab === "batters" && (
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-800 text-xs uppercase text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">Player</th>
+                  <th className="px-4 py-3">Seasons</th>
+                  <th className="px-4 py-3">Total Runs</th>
+                  <th className="px-4 py-3">Mean Runs / Season</th>
+                  <th className="px-4 py-3">Std Dev</th>
+                  <th className="px-4 py-3">CV (Lower = Better)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/70">
+                {filteredConsistency.map((c) => (
+                  <tr key={c.player_name} className="hover:bg-slate-800/40">
+                    <td className="px-4 py-3 font-medium text-white">{c.player_name}</td>
+                    <td className="px-4 py-3 text-slate-300">{c.seasons_played}</td>
+                    <td className="px-4 py-3 text-slate-300">{c.total_runs.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-slate-300">{c.mean_runs_per_season}</td>
+                    <td className="px-4 py-3 text-slate-300">{c.std_runs_per_season}</td>
+                    <td className="px-4 py-3 font-semibold text-emerald-400">{c.cv}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Visual Analytics Grid: Boundary/Running Split + Total Wickets + Total Runs & Career Batting SR */}
+          <div className="grid gap-6 lg:grid-cols-12">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 lg:col-span-6">
+              <h2 className="text-sm font-semibold text-white">
+                Distribution of Runs for Top Run Scorers
+              </h2>
+              <p className="mb-4 text-xs text-slate-400">
+                Running Runs, Sixes Runs (6×6s) and Fours Runs (4×4s) by player_name
+              </p>
+              <div className="h-96 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={runDistributionData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis type="number" stroke="#94a3b8" fontSize={11} />
+                    <YAxis
+                      type="category"
+                      dataKey="player_name"
+                      stroke="#cbd5e1"
+                      fontSize={10}
+                      width={110}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        borderColor: "#334155",
+                        borderRadius: 8,
+                      }}
+                    />
+                    <Legend />
+                    <Bar
+                      dataKey="running_runs"
+                      name="Running Runs"
+                      stackId="runs"
+                      fill="#0ea5e9"
+                    />
+                    <Bar
+                      dataKey="sixes_runs"
+                      name="Sixes Runs"
+                      stackId="runs"
+                      fill="#1e3a8a"
+                    />
+                    <Bar
+                      dataKey="fours_runs"
+                      name="Fours Runs"
+                      stackId="runs"
+                      fill="#ea580c"
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-6 lg:col-span-6">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <h2 className="text-sm font-semibold text-white">Total Wickets</h2>
+                <p className="mb-3 text-xs text-slate-400">by player_name</p>
+                <div className="h-40 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={filteredBowlers.slice(0, 10)}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis
+                        dataKey="player_name"
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        interval={0}
+                        angle={-15}
+                        textAnchor="end"
+                        height={45}
+                      />
+                      <YAxis stroke="#94a3b8" fontSize={11} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#0f172a",
+                          borderColor: "#334155",
+                          borderRadius: 8,
+                        }}
+                      />
+                      <Bar
+                        dataKey="total_wickets"
+                        name="Total Wickets"
+                        fill="#0284c7"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <h2 className="text-sm font-semibold text-white">
+                  Total Runs and Career Batting SR
+                </h2>
+                <p className="mb-3 text-xs text-slate-400">by player_name</p>
+                <div className="h-40 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={runsAndSrData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis
+                        dataKey="player_name"
+                        stroke="#94a3b8"
+                        fontSize={10}
+                        interval={0}
+                        angle={-15}
+                        textAnchor="end"
+                        height={45}
+                      />
+                      <YAxis yAxisId="left" stroke="#94a3b8" fontSize={11} />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        stroke="#10b981"
+                        fontSize={11}
+                        domain={[100, 170]}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#0f172a",
+                          borderColor: "#334155",
+                          borderRadius: 8,
+                        }}
+                      />
+                      <Legend />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="total_runs"
+                        name="Total Runs"
+                        fill="#0284c7"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="strike_rate"
+                        name="Career Batting SR"
+                        stroke="#10b981"
+                        strokeWidth={2.5}
+                        dot={{ r: 3 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Data Table for Active Tab */}
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
+            {tab === "batters" ? (
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-slate-800 text-xs uppercase text-slate-400">
                   <tr>
@@ -393,9 +569,7 @@ export default function PlayersPage() {
                   ))}
                 </tbody>
               </table>
-            )}
-
-            {tab === "bowlers" && (
+            ) : (
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-slate-800 text-xs uppercase text-slate-400">
                   <tr>
@@ -418,33 +592,6 @@ export default function PlayersPage() {
                       <td className="px-4 py-3 text-slate-300">{bw.economy_rate}</td>
                       <td className="px-4 py-3 text-slate-300">{bw.bowling_average ?? "—"}</td>
                       <td className="px-4 py-3 text-slate-300">{bw.bowling_strike_rate ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            {tab === "consistency" && (
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-slate-800 text-xs uppercase text-slate-400">
-                  <tr>
-                    <th className="px-4 py-3">Player</th>
-                    <th className="px-4 py-3">Seasons</th>
-                    <th className="px-4 py-3">Total Runs</th>
-                    <th className="px-4 py-3">Mean Runs / Season</th>
-                    <th className="px-4 py-3">Std Dev</th>
-                    <th className="px-4 py-3">CV (Lower = Better)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/70">
-                  {filteredConsistency.map((c) => (
-                    <tr key={c.player_name} className="hover:bg-slate-800/40">
-                      <td className="px-4 py-3 font-medium text-white">{c.player_name}</td>
-                      <td className="px-4 py-3 text-slate-300">{c.seasons_played}</td>
-                      <td className="px-4 py-3 text-slate-300">{c.total_runs.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-slate-300">{c.mean_runs_per_season}</td>
-                      <td className="px-4 py-3 text-slate-300">{c.std_runs_per_season}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-400">{c.cv}</td>
                     </tr>
                   ))}
                 </tbody>
