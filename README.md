@@ -1,95 +1,104 @@
 <div align="center">
-  <h1>IPL Intelligence</h1>
-  <p><strong>Historical IPL analytics, a production-minded data warehouse, and an AI research assistant.</strong></p>
+  <h1>Know IPL</h1>
+  <p><strong>A full-stack IPL intelligence platform for historical analytics, data exploration, and AI-assisted research.</strong></p>
   <p>
-    <a href="#architecture">Architecture</a> &bull;
-    <a href="#getting-started">Getting started</a> &bull;
-    <a href="#data-pipeline">Data pipeline</a> &bull;
-    <a href="#api">API</a>
+    <a href="#quick-start">Quick start</a> ·
+    <a href="#architecture">Architecture</a> ·
+    <a href="#data-pipeline">Data pipeline</a> ·
+    <a href="#api-reference">API</a> ·
+    <a href="#security">Security</a>
   </p>
 </div>
 
 ## Overview
 
-IPL Intelligence is a full-stack analytics platform for exploring Indian Premier League history. It turns ball-by-ball match data into a curated warehouse, exposes analytical endpoints through FastAPI, and provides a responsive Next.js dashboard with an authenticated, natural-language AI analyst.
+Know IPL transforms ball-by-ball Indian Premier League data into a query-ready analytical warehouse and an authenticated dashboard. It combines interactive visualizations, statistical analysis, and `cricketmama.exe`—an AI assistant that can retrieve cricket knowledge, safely query the warehouse, and return chart-ready results.
 
-The project covers IPL seasons from 2008 onward, subject to the source data loaded into the warehouse.
+The loaded historical coverage is determined by the Cricsheet IPL CSV files supplied to the pipeline. The application and its analytics are designed around seasons from 2008 onward.
 
-## Highlights
+## What it delivers
 
-- Explore season trends, player records, team performance, head-to-head matchups, venue profiles, and match extremes.
-- Build analytical tables from raw ball-by-ball data using Bronze, Silver, and Gold data layers.
-- Run statistical investigations, including chasing advantage and scoring-era comparisons.
-- Sign up and sign in with Supabase Auth.
-- Ask an AI assistant data and cricket-knowledge questions; it selects RAG, SQL, or hybrid retrieval.
-- Save AI analyses and retain chat history per authenticated user.
-- Keep AI-generated database access read-only with SQL validation, forbidden-keyword checks, a statement timeout, and row limits.
+- **Interactive analytics** for seasons, players, teams, head-to-head records, venues, match extremes, and win outcomes.
+- **A layered data platform** that moves raw CSV into cleaned, partitioned Parquet and curated Gold dimensions and facts.
+- **Research-grade metrics** including batting and bowling aggregates, player consistency, chasing advantage, and scoring-era tests.
+- **An AI analyst** that classifies questions as retrieval, SQL, or hybrid; answers with grounded context; and emits chart specifications when data supports a visualization.
+- **Authenticated personalization** through Supabase Auth: user preferences, saved analyses, and a rolling three-session chat history.
+- **Defensive AI database access** with read-only SQL validation, forbidden-keyword screening, a 5-second statement timeout, and result limits.
 
-## Tech Stack
+## Technology
 
-<p align="center">
-  <a href="https://nextjs.org/" title="Next.js"><img src="https://skillicons.dev/icons?i=nextjs" width="48" height="48" alt="Next.js" /></a>
-  <a href="https://react.dev/" title="React"><img src="https://skillicons.dev/icons?i=react" width="48" height="48" alt="React" /></a>
-  <a href="https://www.typescriptlang.org/" title="TypeScript"><img src="https://skillicons.dev/icons?i=ts" width="48" height="48" alt="TypeScript" /></a>
-  <a href="https://tailwindcss.com/" title="Tailwind CSS"><img src="https://skillicons.dev/icons?i=tailwind" width="48" height="48" alt="Tailwind CSS" /></a>
-  <a href="https://www.python.org/" title="Python"><img src="https://skillicons.dev/icons?i=python" width="48" height="48" alt="Python" /></a>
-  <a href="https://fastapi.tiangolo.com/" title="FastAPI"><img src="https://skillicons.dev/icons?i=fastapi" width="48" height="48" alt="FastAPI" /></a>
-  <a href="https://www.postgresql.org/" title="PostgreSQL"><img src="https://skillicons.dev/icons?i=postgres" width="48" height="48" alt="PostgreSQL" /></a>
-  <a href="https://supabase.com/" title="Supabase"><img src="https://skillicons.dev/icons?i=supabase" width="48" height="48" alt="Supabase" /></a>
-  <a href="https://aws.amazon.com/s3/" title="Amazon S3"><img src="https://cdn.simpleicons.org/amazons3/569A31" width="48" height="48" alt="Amazon S3" /></a>
-</p>
-
-<p align="center">
-  <sub>Next.js &middot; React &middot; TypeScript &middot; Tailwind CSS &middot; Recharts &middot; Python &middot; FastAPI &middot; PySpark &middot; PostgreSQL &middot; Supabase &middot; pgvector &middot; LangGraph &middot; Groq</sub>
-</p>
+| Area | Tools |
+| --- | --- |
+| Web application | Next.js 16, React 19, TypeScript, Tailwind CSS, Recharts |
+| API | Python, FastAPI, Uvicorn, SQLAlchemy |
+| Data engineering | PySpark, Pandas, PyArrow |
+| Data platform | Supabase PostgreSQL, pgvector, Row Level Security |
+| AI | LangGraph, LangChain Groq, BAAI `bge-small-en-v1.5` embeddings |
+| Storage | Local Bronze/Silver/Gold layers with optional Amazon S3 synchronization |
 
 ## Architecture
 
 ```text
-Cricsheet ball-by-ball data
-          |
-          v
-Bronze (raw CSV) --> PySpark cleaning --> Silver (partitioned Parquet)
-                                             |
-                                             v
-                                    Gold dimensions and facts
-                                             |
-                                             v
-                              Supabase PostgreSQL + pgvector
-                                  |                    |
-                                  |                    +--> RAG knowledge base
-                                  v
-                           FastAPI analytics and AI API
-                                  |
-                                  v
-                    Next.js dashboard, charts, and Supabase Auth
+Cricsheet IPL CSVs
+       │
+       ▼
+Bronze ──► Silver (PySpark cleaning + partitioned Parquet) ──► Gold facts & dimensions
+                                                                  │
+                                                 ┌────────────────┴────────────────┐
+                                                 ▼                                 ▼
+                                  Supabase PostgreSQL + RLS                 pgvector knowledge base
+                                                 │                                 │
+                                                 └──────────────┬──────────────────┘
+                                                                ▼
+                                                FastAPI analytics & AI service
+                                                                │
+                                                                ▼
+                                  Next.js dashboard + Supabase Auth + Recharts
 ```
 
-## Repository Layout
+### AI request flow
+
+```text
+Question → Intent classification → RAG retrieval and/or Text-to-SQL → SQL safety gate
+         → chart specification (when applicable) → grounded response
+```
+
+The assistant routes conceptual questions to vector retrieval, numerical questions to Text-to-SQL, and mixed questions through both paths. Generated SQL must be one `SELECT` or `WITH` statement; write operations and multi-statement queries are rejected.
+
+## Repository structure
 
 ```text
 .
-|-- backend/                 # FastAPI application, analytics service, and AI agent
-|   `-- app/
-|       |-- agents/          # LangGraph-based RAG/Text-to-SQL workflow
-|       |-- api/             # Analytics, chat, profile, and saved-analysis routes
-|       |-- core/            # Supabase authentication helpers
-|       `-- services/        # SQL-backed analytical queries
-|-- data-engineering/        # Bronze/Silver/Gold ETL and loading utilities
-|-- frontend/                # Next.js dashboard and authentication UI
-|-- supabase/migrations/     # PostgreSQL schema, RLS policies, and pgvector setup
-`-- requirements.txt         # Python dependencies
+├── backend/
+│   ├── main.py                       # FastAPI application and CORS configuration
+│   └── app/
+│       ├── agents/ipl_agent.py       # LangGraph RAG / Text-to-SQL workflow
+│       ├── api/                      # Analytics, chat, profile, and saved-analysis routes
+│       ├── core/auth.py              # Supabase JWT validation and server client
+│       └── services/analytics.py     # SQL-backed metrics and statistical tests
+├── data-engineering/
+│   ├── etl_silver.py                 # Raw delivery CSV → normalized Silver Parquet
+│   ├── etl_gold.py                   # Silver data → eight analytical Gold tables
+│   ├── load_to_supabase.py           # Idempotent Gold-table load to PostgreSQL
+│   ├── build_match_info.py           # Metadata CSV → dim_match_info
+│   ├── build_rag_kb.py               # Grounded documents and 384-dim embeddings
+│   ├── upload_to_s3.py               # Optional data-lake synchronization
+│   └── verify_*.py                   # Analytics and agent smoke checks
+├── frontend/                         # Next.js application
+├── supabase/migrations/              # PostgreSQL schema, indexes, pgvector, and RLS
+└── requirements.txt                  # Python dependencies
 ```
 
-## Getting Started
+## Quick start
 
 ### Prerequisites
 
-- Python 3.11+
-- Node.js 20+
-- Java 17+ for local PySpark execution
-- A Supabase project with Auth enabled
-- A Groq API key for the AI assistant
+- Python 3.11 or later
+- Node.js 20 or later
+- Java 17 or later for local PySpark jobs
+- A Supabase project with email authentication enabled
+- A Groq API key for `cricketmama.exe`
+- Cricsheet IPL CSV data for a first-time warehouse build
 
 ### 1. Install dependencies
 
@@ -106,25 +115,28 @@ cd ..
 
 ### 2. Configure environment variables
 
-Create a root `.env` file for the backend, ETL, and AI agent:
+Create a root `.env` file for the API, ETL jobs, and agent:
 
 ```env
-AWS_S3_BUCKET=your-bucket-name
-AWS_REGION=your-aws-region
-
+# Required server-side Supabase configuration
 SUPABASE_URL=https://your-project-ref.supabase.co
-SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 SUPABASE_SECRET_KEY=your-supabase-secret-key
 SUPABASE_DB_URL=postgresql+psycopg://...
 
+# Required for the AI assistant
 GROQ_API_KEY=your-groq-api-key
 GROQ_MODEL=openai/gpt-oss-120b
 
-# Optional: comma-separated browser origins allowed to call FastAPI
+# Optional API configuration
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+PORT=7860
+
+# Optional S3 archival
+AWS_S3_BUCKET=your-bucket-name
+AWS_REGION=ap-south-1
 ```
 
-Create `frontend/.env.local` for browser-safe configuration only:
+Create `frontend/.env.local` with browser-safe values only:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
@@ -132,97 +144,165 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 NEXT_PUBLIC_API_URL=http://127.0.0.1:7860
 ```
 
-Never expose `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`, or `GROQ_API_KEY` in `frontend/.env.local`.
+> Never put `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`, or `GROQ_API_KEY` in a `NEXT_PUBLIC_*` variable or frontend environment file.
 
-### 3. Create the database schema
+### 3. Provision the database
 
-Run [001_initial_schema.sql](supabase/migrations/001_initial_schema.sql) in the Supabase SQL Editor. It creates the analytical tables, user-data tables, vector store, indexes, and row-level security policies.
+Run [001_initial_schema.sql](supabase/migrations/001_initial_schema.sql) in the Supabase SQL Editor. It enables pgvector and creates the analytical tables, vector store, user-data tables, indexes, and row-level security policies.
 
-### 4. Build and load the data warehouse
+### 4. Build and load the warehouse
 
-Place the extracted Cricsheet IPL CSV files in `data-engineering/bronze/cricsheet_raw/`, then run:
+Extract the Cricsheet IPL CSV files into `data-engineering/bronze/cricsheet_raw/`. Both numeric match-delivery files and their matching `_info.csv` files are required for the complete model.
 
 ```powershell
+# Optional source inspection
 python data-engineering/eda_initial.py
+
+# Required warehouse build and load
 python data-engineering/etl_silver.py
 python data-engineering/etl_gold.py
 python data-engineering/load_to_supabase.py
+python data-engineering/build_match_info.py
 python data-engineering/build_rag_kb.py
 ```
 
-The generated Bronze, Silver, Gold, and log files are intentionally excluded from Git.
+`load_to_supabase.py` refreshes the eight Gold analytical tables. `build_match_info.py` separately loads supplementary match metadata such as tosses, umpires, player of the match, stage, and venue city.
 
 ### 5. Run the application
 
-In one terminal:
+Start the backend from the repository root:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 python -m uvicorn backend.main:app --reload --port 7860
 ```
 
-In a second terminal:
+In a second terminal, start the dashboard:
 
 ```powershell
 cd frontend
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). API documentation is available at [http://127.0.0.1:7860/docs](http://127.0.0.1:7860/docs).
+Open [http://localhost:3000](http://localhost:3000). The interactive API reference is available at [http://127.0.0.1:7860/docs](http://127.0.0.1:7860/docs).
 
-## Data Pipeline
+## Product areas
 
-| Layer | Storage | Responsibility |
-| --- | --- | --- |
-| Bronze | Raw CSV | Stores extracted source files without transformation. |
-| Silver | Partitioned Parquet | Cleans types, fills selected nulls, standardizes renamed franchises, and normalizes split-season labels. |
-| Gold | Parquet and PostgreSQL | Produces query-ready dimensions and facts for analytics, dashboards, and the AI assistant. |
-
-The Gold model contains dimensions for seasons, teams, venues, and players; and facts for matches, batting by season, bowling by season, and venue statistics.
-
-## AI Assistant
-
-The assistant uses a LangGraph workflow to classify each question as RAG, SQL, or hybrid:
-
-1. RAG queries retrieve semantically similar IPL definitions, season summaries, player records, team histories, and venue profiles from `rag_documents`.
-2. SQL queries generate a single PostgreSQL `SELECT` or `WITH` statement against the Gold schema.
-3. Hybrid queries combine retrieved context with verified analytical results.
-4. Returned data can be represented as a chart specification and rendered in the dashboard.
-
-Generated SQL is constrained to read-only statements and is checked before execution.
-
-## API
-
-All analytics endpoints require a valid Supabase Bearer token.
-
-| Area | Example endpoints |
+| Area | Capabilities |
 | --- | --- |
-| Dashboard | `GET /api/analytics/overview`, `GET /api/analytics/seasons`, `GET /api/analytics/stats` |
-| Players | `GET /api/analytics/players/batters`, `GET /api/analytics/players/bowlers`, `GET /api/analytics/players/consistency` |
-| Teams and venues | `GET /api/analytics/teams`, `GET /api/analytics/teams/h2h`, `GET /api/analytics/venues` |
-| AI and user data | `POST /api/chat`, `GET /api/chat/sessions`, `GET /api/saved-analyses`, `PUT /api/profile` |
+| Overview | Scoring trends, franchise wins, match-outcome distribution, boundaries, and statistical findings |
+| Players | Searchable directory, seasonal filters, batting and bowling leaderboards, consistency analysis |
+| Teams | Franchise standings, details, season filters, and head-to-head comparison |
+| Venues | First-innings scoring, defend-versus-chase outcomes, and venue summaries |
+| Seasons | Season scorecards, highest combined-score matches, and closest run-margin finishes |
+| AI assistant | Multi-session question answering, SQL visibility, dynamic charts, and saved analyses |
+| Settings | Display name, favourite team, and favourite player preferences that personalize AI context |
 
-Refer to the live OpenAPI UI at `/docs` when the backend is running for complete parameters and response contracts.
+## Data pipeline
 
-## Quality Checks
+| Layer | Format | Responsibility |
+| --- | --- | --- |
+| Bronze | Source CSV | Raw extracted Cricsheet deliveries and match-info data |
+| Silver | Season-partitioned Parquet | Type cleanup; normalized seasons, franchises, venues, extras, and delivery data |
+| Gold | Parquet + PostgreSQL | Query-optimized dimensions, facts, and pre-aggregated venue statistics |
+| Knowledge base | PostgreSQL + pgvector | Grounded cricket definitions and data-derived player, team, season, and venue summaries |
+
+The Gold layer creates these analytical tables:
+
+- Dimensions: `dim_seasons`, `dim_teams`, `dim_venues`, `dim_players`
+- Facts: `fact_matches`, `fact_player_batting_season`, `fact_player_bowling_season`, `fact_venue_stats`
+- Enriched metadata: `dim_match_info`
+
+### Vector knowledge-base document index
+
+The following is the supplied snapshot of documents currently represented in the pgvector knowledge base. Documents are embedded with `BAAI/bge-small-en-v1.5` (384 dimensions) and retrieved semantically by the AI assistant; the full document body and embedding remain in `public.rag_documents` rather than the README.
+
+| Document key | Type | Indexed subject |
+| --- | --- | --- |
+| `finding_statistical_summary` | `analytical_finding` | Historical IPL statistical findings for 2008–2026, including chasing outcomes |
+| `def_batting_metrics` | `cricket_term` | Batting average, strike rate, and consistency definitions |
+| `def_bowling_metrics` | `cricket_term` | Economy rate, bowling average, strike rate, and wicket-credit rules |
+| `def_match_phases` | `cricket_term` | Powerplay, middle-over, and death-over definitions |
+| `player_bat_a_badoni` | `player_summary` | A Badoni batting career summary |
+| `player_bat_ab_de_villiers` | `player_summary` | AB de Villiers batting career summary |
+| `player_bat_abhishek_sharma` | `player_summary` | Abhishek Sharma batting career summary |
+| `player_bat_ac_gilchrist` | `player_summary` | AC Gilchrist batting career summary |
+| `player_bat_ad_russell` | `player_summary` | AD Russell batting career summary |
+| `player_bat_aj_finch` | `player_summary` | AJ Finch batting career summary |
+| `player_bat_ak_markram` | `player_summary` | AK Markram batting career summary |
+| `player_bat_am_rahane` | `player_summary` | AM Rahane batting career summary |
+| `player_bat_ar_patel` | `player_summary` | AR Patel batting career summary |
+| `player_bat_at_rayudu` | `player_summary` | AT Rayudu batting career summary |
+| `player_bat_b_sai_sudharsan` | `player_summary` | B Sai Sudharsan batting career summary |
+| `player_bat_bb_mccullum` | `player_summary` | BB McCullum batting career summary |
+| `player_bat_bj_hodge` | `player_summary` | BJ Hodge batting career summary |
+| `player_bat_ca_lynn` | `player_summary` | CA Lynn batting career summary |
+| `player_bat_ch_gayle` | `player_summary` | CH Gayle batting career summary |
+| `player_bat_d_padikkal` | `player_summary` | D Padikkal batting career summary |
+| `player_bat_da_miller` | `player_summary` | DA Miller batting career summary |
+| `player_bat_da_warner` | `player_summary` | DA Warner batting career summary |
+| `player_bat_dhruv_jurel` | `player_summary` | Dhruv Jurel batting career summary |
+| `player_bat_dj_bravo` | `player_summary` | DJ Bravo batting career summary |
+| `player_bat_dj_hooda` | `player_summary` | DJ Hooda batting career summary |
+
+The document generator also produces team histories, season summaries, venue profiles, and top-player summaries. Regenerate and upsert the knowledge base after refreshing Gold data:
+
+```powershell
+python data-engineering/build_rag_kb.py
+```
+
+### Optional S3 synchronization
+
+After generating local Bronze, Silver, and Gold assets, archive them to the configured S3 bucket:
+
+```powershell
+python data-engineering/upload_to_s3.py
+```
+
+Use `--force-bronze` to replace the archived Bronze ZIP. The script clears and repopulates the bucket’s `silver/deliveries/` and `gold/` prefixes, so use a bucket or prefixes dedicated to this project.
+
+## API reference
+
+All routes under `/api/analytics` and all user-data routes require a valid Supabase access token in `Authorization: Bearer <token>`. The frontend attaches this token automatically for authenticated users.
+
+| Domain | Routes |
+| --- | --- |
+| Health | `GET /`, `GET /health` |
+| Dashboard | `GET /api/analytics/overview`, `GET /api/analytics/seasons`, `GET /api/analytics/win-types`, `GET /api/analytics/stats` |
+| Players | `GET /api/analytics/players/batters`, `.../bowlers`, `.../consistency`, `.../all` |
+| Teams | `GET /api/analytics/teams`, `GET /api/analytics/teams/h2h`, `GET /api/analytics/teams/details` |
+| Venues and matches | `GET /api/analytics/venues`, `GET /api/analytics/matches/extremes` |
+| Chat | `GET, POST /api/chat/sessions`, `GET, DELETE /api/chat/sessions/{session_id}`, `POST /api/chat` |
+| Saved analyses | `GET, POST /api/saved-analyses` |
+| Profile | `GET, PUT /api/profile` |
+
+Use `/docs` on a running backend for request models, query parameters, and response contracts.
+
+## Validation and quality checks
 
 ```powershell
 # Frontend linting
 cd frontend
 npm run lint
-
-# Data and AI verification utilities
 cd ..
+
+# Verify representative analytics queries against the warehouse
 python data-engineering/verify_analytics.py
+
+# Exercise RAG, Text-to-SQL, and hybrid agent paths
 python data-engineering/verify_agent.py
 ```
 
-## Security Notes
+Pipeline, loader, and verification output is written to `data-engineering/logs/`. Generated Bronze, Silver, Gold, local Python environments, and secrets are intentionally ignored by Git.
 
-- Supabase Row Level Security restricts profiles, chat sessions, chat messages, and saved analyses to their owners.
-- The browser uses the Supabase publishable key; privileged server-side operations use the secret key only from the backend environment.
-- Database credentials and API keys belong only in ignored environment files.
+## Security
+
+- Supabase JWTs are verified by the backend before protected routes execute.
+- User profiles, chat sessions, chat messages, and saved analyses are protected by per-user Row Level Security policies.
+- The backend secret key and database connection remain server-side; the frontend uses only the Supabase publishable key.
+- Agent SQL is restricted to a single read-only statement with an execution timeout and a maximum result limit.
+- The vector knowledge base and analytical tables expose read access through defined RLS policies; do not store private data in those tables.
 
 ## License
 
-No license has been specified for this repository. Add one before distributing or reusing the project externally.
+No license has been declared. Add an appropriate license before external distribution or reuse.
