@@ -1,0 +1,4 @@
+2026-11-25 21:25:28,910 | INFO | Found 1243 match info files in C:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\bronze\cricsheet_raw
+2026-11-25 21:25:39,117 | INFO | Saved 1,243 rows to C:\Users\ritam\Desktop\work\projects\ipl-intelligence\data-engineering\gold\dim_match_info.parquet
+2026-11-25 21:25:39,465 | INFO | Uploading public.dim_match_info to Supabase...
+2026-11-25 21:25:44,100 | INFO | public.dim_match_info loaded, indexed, and secured with RLS!

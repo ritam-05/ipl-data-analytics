@@ -27,6 +27,13 @@ PostgreSQL Schema (all tables in schema 'public'):
 7. fact_player_bowling_season(player_name TEXT, season INT, team TEXT, matches INT, legal_balls INT, runs_conceded INT, wickets INT, overs FLOAT, economy_rate FLOAT, bowling_average FLOAT, bowling_strike_rate FLOAT)
    -- Career economy: (SUM(runs_conceded)::numeric / NULLIF(SUM(legal_balls), 0)) * 6.
 8. fact_venue_stats(venue TEXT PK, total_matches INT, avg_first_innings_score FLOAT, highest_first_innings_score INT, lowest_first_innings_score INT, bat_first_wins INT, chase_wins INT, chase_win_pct FLOAT)
+9. dim_match_info(match_id INT PK, season INT, start_date TEXT, city TEXT, venue TEXT, stage TEXT, team_1 TEXT, team_2 TEXT, toss_winner TEXT, toss_decision TEXT, player_of_match TEXT, umpire_1 TEXT, umpire_2 TEXT, tv_umpire TEXT, reserve_umpire TEXT, match_referee TEXT, winner TEXT, win_by_runs INT, win_by_wickets INT, outcome TEXT, method TEXT)
+   -- Use dim_match_info for umpires (umpire_1, umpire_2, tv_umpire), match_referee, player_of_match, toss_winner, toss_decision, city, stage, or specific match lookups. Join with fact_matches on match_id if innings scores are also needed.
+
+CRITICAL PLAYER & UMPIRE NAME RULE:
+- Cricsheet stores player and umpire names using initials + surname (e.g., 'V Kohli', 'RG Sharma', 'MS Dhoni', 'JJ Bumrah', 'AB de Villiers', 'Nitin Menon').
+- NEVER write `player_name ILIKE '%Virat Kohli%'` or `umpire_1 ILIKE '%Kumar Dharmasena%'` because the full first name is NOT stored in the column.
+- Instead, match the initial + surname pattern: e.g., for "Virat Kohli" write `player_name ILIKE '%V%Kohli%'`; for "Rohit Sharma" write `player_name ILIKE '%R%Sharma%'`; for "Kumar Dharmasena" write `(umpire_1 ILIKE '%K%Dharmasena%' OR umpire_2 ILIKE '%K%Dharmasena%')`.
 """
 
 FORBIDDEN_SQL_KEYWORDS = re.compile(
@@ -100,7 +107,7 @@ def classify_intent_node(state: AgentState) -> dict:
     prompt = (
         "Classify the user's IPL cricket question into exactly one label:\n"
         "- 'rag': definitions, cricket rules, general summaries, or conceptual questions.\n"
-        "- 'sql': exact rankings, comparisons, filtering by season/team/player/venue, or custom stats.\n"
+        "- 'sql': exact stats, player profiles, rankings, comparisons, filtering by season/team/player/venue/umpire/toss/match.\n"
         "- 'hybrid': needs both exact database numbers AND conceptual/statistical explanation.\n"
         "Respond with ONLY one word: rag, sql, or hybrid."
     )
@@ -144,7 +151,7 @@ def sql_generate_node(state: AgentState) -> dict:
         f"{GOLD_SCHEMA_PROMPT}\n"
         "Rules:\n"
         "1. Write ONLY a single valid PostgreSQL SELECT query.\n"
-        "2. Use ILIKE for player, team, or venue name matching (e.g., player_name ILIKE '%Kohli%').\n"
+        "2. Follow the CRITICAL PLAYER & UMPIRE NAME RULE strictly.\n"
         "3. Always include a LIMIT clause (max 50).\n"
         "4. Return ONLY raw SQL with no markdown fences, no explanation, and no trailing semicolon."
     )
