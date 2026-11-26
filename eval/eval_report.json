@@ -1,0 +1,77 @@
+{
+  "pass_rate": "4/4 (100.0%)",
+  "rag_hit_rate_at_4": 1.0,
+  "rag_mrr_at_4": 1.0,
+  "avg_latency_ms": 5947.0,
+  "cases": [
+    {
+      "id": "rag_economy",
+      "passed": true,
+      "intent": "rag",
+      "latency_ms": 2880.1,
+      "sql_error": null,
+      "contains_ok": true,
+      "forbidden_ok": true,
+      "chart_ok": true,
+      "rag_eval": {
+        "checked": true,
+        "hit": true,
+        "reciprocal_rank": 1.0,
+        "retrieved_keys": [
+          "def_bowling_metrics",
+          "def_batting_metrics",
+          "player_bowl_a_mishra",
+          "player_bowl_pp_ojha"
+        ]
+      }
+    },
+    {
+      "id": "over_kkr_rcb_2017",
+      "passed": true,
+      "intent": "sql",
+      "latency_ms": 4022.1,
+      "sql_error": null,
+      "contains_ok": true,
+      "forbidden_ok": true,
+      "chart_ok": true,
+      "rag_eval": {
+        "checked": false,
+        "hit": null,
+        "reciprocal_rank": null,
+        "retrieved_keys": []
+      }
+    },
+    {
+      "id": "h2h_kohli_bumrah",
+      "passed": true,
+      "intent": "sql",
+      "latency_ms": 7067.7,
+      "sql_error": null,
+      "contains_ok": true,
+      "forbidden_ok": true,
+      "chart_ok": true,
+      "rag_eval": {
+        "checked": false,
+        "hit": null,
+        "reciprocal_rank": null,
+        "retrieved_keys": []
+      }
+    },
+    {
+      "id": "chart_requested",
+      "passed": true,
+      "intent": "sql",
+      "latency_ms": 9818.0,
+      "sql_error": null,
+      "contains_ok": true,
+      "forbidden_ok": true,
+      "chart_ok": true,
+      "rag_eval": {
+        "checked": false,
+        "hit": null,
+        "reciprocal_rank": null,
+        "retrieved_keys": []
+      }
+    }
+  ]
+}

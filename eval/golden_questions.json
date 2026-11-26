@@ -1,0 +1,182 @@
+[
+  {
+    "id": "rag_batting_metrics",
+    "category": "rag",
+    "question": "How are batting average and batting strike rate calculated in IPL cricket?",
+    "expected_doc_keys": ["def_batting_metrics"],
+    "must_contain_any": ["dismissals", "balls", "100"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "rag_bowling_metrics",
+    "category": "rag",
+    "question": "How is bowling economy rate calculated in IPL cricket?",
+    "expected_doc_keys": ["def_bowling_metrics"],
+    "must_contain_any": ["legal balls", "6"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "rag_match_phases",
+    "category": "rag",
+    "question": "What are the three tactical phases of an IPL innings?",
+    "expected_doc_keys": ["def_match_phases"],
+    "must_contain_any": ["Powerplay", "Middle", "Death"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "hybrid_chasing_advantage",
+    "category": "hybrid",
+    "question": "Why do chasing teams win more often in the IPL and what are the historical chasing vs defending numbers?",
+    "expected_doc_keys": ["finding_statistical_summary"],
+    "must_contain_any": ["652", "569", "53.4"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "sql_top_batters_text",
+    "category": "sql",
+    "question": "Who are the top 5 all-time run scorers in IPL history?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Kohli"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "sql_top_batters_chart",
+    "category": "sql",
+    "question": "Show top 5 run scorers in IPL history as a bar chart",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Kohli"],
+    "must_not_contain": [],
+    "expect_chart": true
+  },
+  {
+    "id": "sql_season_scoring_chart",
+    "category": "sql",
+    "question": "Visualize the average first innings score by season from 2018 to 2026",
+    "expected_doc_keys": [],
+    "must_contain_any": ["2018", "2024"],
+    "must_not_contain": [],
+    "expect_chart": true
+  },
+  {
+    "id": "over_kkr_rcb_2017_eden",
+    "category": "over_by_over",
+    "question": "what happened in 7th over of second innings of kkr vs rcb in 2017 in eden gardens?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Woakes", "Gayle", "Binny"],
+    "must_not_contain": ["Siddharth Trivedi Binny", "Shane Badree"],
+    "expect_chart": false
+  },
+  {
+    "id": "over_rcb_csk_2024_05_18_powerplay",
+    "category": "over_by_over",
+    "question": "Show what happened in overs 1 to 6 of RCB vs CSK on 2024-05-18",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Over 1", "Over 6", "Royal Challengers Bengaluru", "Chennai Super Kings"],
+    "must_not_contain": ["I don’t have", "I don't have"],
+    "expect_chart": false
+  },
+  {
+    "id": "over_2023_final_second_innings",
+    "category": "over_by_over",
+    "question": "What happened in overs 11 to 15 of the 2nd innings in the IPL 2023 Final?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Over 11", "Over 15"],
+    "must_not_contain": ["I don’t have", "I don't have"],
+    "expect_chart": false
+  },
+  {
+    "id": "phase_death_economy_min_200_balls",
+    "category": "phase_stats",
+    "question": "Which bowlers have the best economy rate in Death overs (minimum 200 legal balls)?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Narine", "Bumrah"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "h2h_kohli_vs_bumrah",
+    "category": "head_to_head",
+    "question": "What is Virat Kohli's head-to-head record against Jasprit Bumrah?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["164", "110", "5"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "h2h_russell_vs_rashid",
+    "category": "head_to_head",
+    "question": "compare andre russell and rashid khan head to head",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Russell", "27", "28"],
+    "must_not_contain": ["SN Khan", "114 matches", "153 matches"],
+    "expect_chart": false
+  },
+  {
+    "id": "compare_russell_and_rashid_career",
+    "category": "comparison",
+    "question": "compare andre russell and rashid khan in IPL",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Russell", "Rashid", "2651", "179"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "compare_mi_and_csk_teams",
+    "category": "comparison",
+    "question": "compare Mumbai Indians and Chennai Super Kings overall IPL wins",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Mumbai Indians", "Chennai Super Kings"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "h2h_kkr_vs_rcb_teams",
+    "category": "head_to_head",
+    "question": "KKR vs RCB head to head match record",
+    "expected_doc_keys": [],
+    "must_contain_any": ["Kolkata Knight Riders", "Royal Challengers Bengaluru"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "meta_2024_final_umpires_toss",
+    "category": "match_metadata",
+    "question": "Who were the umpires and toss winner in the IPL 2024 Final?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["2024", "toss"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "venue_high_chase_win_pct",
+    "category": "sql",
+    "question": "Which 5 venues have the highest chasing win percentage with at least 15 matches?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["%"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "sql_player_consistency",
+    "category": "sql",
+    "question": "Who are the most consistent IPL batters with at least 6 seasons and 2000 runs?",
+    "expected_doc_keys": [],
+    "must_contain_any": ["CV", "consistency", "runs"],
+    "must_not_contain": [],
+    "expect_chart": false
+  },
+  {
+    "id": "sql_by_visualization_keyword",
+    "category": "sql",
+    "question": "Show top 8 wicket takers in IPL by visualization",
+    "expected_doc_keys": [],
+    "must_contain_any": ["wickets"],
+    "must_not_contain": [],
+    "expect_chart": true
+  }
+]
