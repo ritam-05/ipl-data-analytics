@@ -11,7 +11,6 @@ import {
   Send,
   Plus,
   Bookmark,
-  Code2,
   MessageSquare,
   Check,
   Trash2,
@@ -27,7 +26,6 @@ interface ChatMessage {
   id?: string;
   role: "user" | "assistant";
   content: string;
-  sql_query?: string | null;
   chart_spec?: ChartSpec | null;
 }
 
@@ -35,7 +33,6 @@ interface ChatApiResponse {
   session_id: string;
   intent: string;
   answer: string;
-  sql_query: string | null;
   sql_row_count: number;
   sql_error: string | null;
   chart_spec: ChartSpec | null;
@@ -43,7 +40,7 @@ interface ChatApiResponse {
 
 const SAMPLE_PROMPTS = [
   "Who are the top 5 all-time run scorers in IPL history?",
-  "Show the average first innings score by season from 2018 to 2026.",
+  "Show the average first innings score by season from 2018 to 2026 as a chart.",
   "How is bowling economy rate calculated in IPL cricket?",
   "Which 5 venues have the highest chasing win percentage (min 15 matches)?",
 ];
@@ -152,7 +149,6 @@ export default function AssistantPage() {
         {
           role: "assistant",
           content: res.answer,
-          sql_query: res.sql_query,
           chart_spec: res.chart_spec,
         },
       ]);
@@ -181,7 +177,7 @@ export default function AssistantPage() {
             title,
             question,
             summary: msg.content,
-            sql_query: msg.sql_query ?? null,
+            sql_query: null,
             chart_spec: msg.chart_spec ?? null,
           }),
         },
@@ -203,7 +199,7 @@ export default function AssistantPage() {
         <Bot className="mx-auto h-10 w-10 text-amber-400" />
         <h1 className="mt-4 text-xl font-bold text-white">Sign in to use cricketmama.exe</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Your chat history, dynamic SQL charts, and saved analyses are securely stored in your account.
+          Your chat history, dynamic charts, and saved analyses are securely stored in your account.
         </p>
         <Link
           href="/login"
@@ -306,18 +302,6 @@ export default function AssistantPage() {
 
                   {m.role === "assistant" && m.chart_spec && (
                     <DynamicChart spec={m.chart_spec} />
-                  )}
-
-                  {m.role === "assistant" && m.sql_query && (
-                    <details className="mt-3 rounded-lg border border-slate-800 bg-slate-900/70 p-2.5 text-xs">
-                      <summary className="flex cursor-pointer items-center gap-1.5 font-medium text-slate-400 hover:text-slate-200">
-                        <Code2 className="h-3.5 w-3.5" />
-                        View Generated PostgreSQL Query
-                      </summary>
-                      <pre className="mt-2 overflow-x-auto text-[11px] text-emerald-400">
-                        {m.sql_query}
-                      </pre>
-                    </details>
                   )}
 
                   {m.role === "assistant" && (

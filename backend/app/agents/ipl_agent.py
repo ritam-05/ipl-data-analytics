@@ -28,43 +28,54 @@ PostgreSQL Schema (all tables in schema 'public'):
    -- Career economy: (SUM(runs_conceded)::numeric / NULLIF(SUM(legal_balls), 0)) * 6.
 8. fact_venue_stats(venue TEXT PK, total_matches INT, avg_first_innings_score FLOAT, highest_first_innings_score INT, lowest_first_innings_score INT, bat_first_wins INT, chase_wins INT, chase_win_pct FLOAT)
 9. dim_match_info(match_id INT PK, season INT, start_date TEXT, city TEXT, venue TEXT, stage TEXT, team_1 TEXT, team_2 TEXT, toss_winner TEXT, toss_decision TEXT, player_of_match TEXT, umpire_1 TEXT, umpire_2 TEXT, tv_umpire TEXT, reserve_umpire TEXT, match_referee TEXT, winner TEXT, win_by_runs INT, win_by_wickets INT, outcome TEXT, method TEXT)
-   -- Use dim_match_info for umpires (umpire_1, umpire_2, tv_umpire), match_referee, player_of_match, toss_winner, toss_decision, city, stage ('Final', 'Qualifier 1', 'Eliminator', etc.), or finding a match_id by date/teams/season.
+   -- Match metadata including umpires, match_referee, player_of_match, toss_winner, toss_decision, city, stage, and match dates.
 10. fact_match_overs(match_id INT, season INT, innings INT, over_num INT, phase TEXT, batting_team TEXT, bowling_team TEXT, bowler TEXT, batters TEXT, legal_balls INT, runs INT, fours INT, sixes INT, wickets INT, dismissals TEXT, ball_by_ball TEXT)
    -- Primary Key: (match_id, innings, over_num). `over_num` is 1 to 20. `phase` is 'Powerplay' (overs 1-6), 'Middle' (overs 7-15), or 'Death' (overs 16-20).
-   -- `ball_by_ball` has the exact delivery-by-delivery sequence for that over (e.g. '1 | 4 | 0 | W(V Kohli - caught) | 6 | 2').
-   -- When a user asks what happened in a specific over or over range of a match, JOIN fact_match_overs o WITH dim_match_info m ON o.match_id = m.match_id and select o.innings, o.over_num, o.batting_team, o.bowler, o.batters, o.runs, o.wickets, o.dismissals, o.ball_by_ball ORDER BY o.innings, o.over_num.
+   -- `ball_by_ball` holds delivery-by-delivery events in that over. Join with dim_match_info on match_id when locating matches by teams, season, date, venue, or stage.
 11. fact_player_matchups(batter TEXT, bowler TEXT, matches INT, balls_faced INT, runs INT, fours INT, sixes INT, dismissals INT, strike_rate FLOAT, batting_average FLOAT)
-   -- Use for head-to-head batter vs bowler records (e.g., Virat Kohli vs Jasprit Bumrah).
+   -- Direct face-to-face batter vs bowler deliveries ONLY.
 
-CRITICAL TEAM NAME RULE (NEVER USE ABBREVIATIONS IN SQL):
-- The database ONLY stores full canonical franchise names. NEVER write `'RCB'`, `'CSK'`, `'KKR'`, `'MI'`, `'SRH'`, `'DC'`, `'PBKS'`, `'RR'`, `'GT'`, `'LSG'`.
-- Always expand abbreviations to full names:
-  * RCB -> 'Royal Challengers Bengaluru'
-  * CSK -> 'Chennai Super Kings'
-  * KKR -> 'Kolkata Knight Riders'
-  * MI  -> 'Mumbai Indians'
-  * SRH -> 'Sunrisers Hyderabad'
-  * DC / DD -> 'Delhi Capitals'
-  * PBKS / KXIP -> 'Punjab Kings'
-  * RR  -> 'Rajasthan Royals'
-  * GT  -> 'Gujarat Titans'
-  * LSG -> 'Lucknow Super Giants'
-  * RPS / RPSG -> 'Rising Pune Supergiant'
-
-CRITICAL DATE & FINAL MATCH RULES:
-- `start_date` in `dim_match_info` may use slashes (`'2024/05/18'`) or hyphens (`'2024-05-18'`). Always compare dates using: `REPLACE(m.start_date, '/', '-') = '2024-05-18'`.
-- If the user asks for an IPL Final of a specific season (e.g., 2023 Final), match it reliably with:
-  `m.match_id = (SELECT match_id FROM dim_match_info WHERE season = 2023 ORDER BY CASE WHEN stage ILIKE '%Final%' THEN 0 ELSE 1 END, REPLACE(start_date, '/', '-') DESC, match_id DESC LIMIT 1)`
-- If the user does not specify innings (1 or 2) for an over-range question, return BOTH innings (do not filter `o.innings = 1` unless requested).
-
-CRITICAL PLAYER & UMPIRE NAME RULE:
-- Cricsheet stores player and umpire names using initials + surname (e.g., 'V Kohli', 'RG Sharma', 'MS Dhoni', 'JJ Bumrah', 'AB de Villiers').
-- NEVER write `player_name ILIKE '%Virat Kohli%'` or `batter ILIKE '%Virat Kohli%'`.
-- Instead, match the initial + surname pattern: e.g., for "Virat Kohli" write `ILIKE '%V%Kohli%'`; for "Rohit Sharma" write `ILIKE '%R%Sharma%'`; for "Jasprit Bumrah" write `ILIKE '%J%Bumrah%'`.
+PLAYER NAME & HEAD-TO-HEAD RULES (CRITICAL):
+- Cricsheet stores player names with initials + surname (e.g., 'AD Russell', 'V Kohli', 'RG Sharma', 'JJ Bumrah', 'Rashid Khan'). NEVER search with full first name like `ILIKE '%Andre Russell%'` — always match using surname or initial+surname (`ILIKE '%Russell%'` and `ILIKE '%Rashid%'`).
+- When the user says "head to head", "h2h", or "facing each other" between TWO PLAYERS:
+  * Query ONLY `public.fact_player_matchups` checking both directions:
+    `SELECT batter, bowler, matches, balls_faced, runs, fours, sixes, dismissals, strike_rate, batting_average FROM public.fact_player_matchups WHERE (batter ILIKE '%Surname1%' AND bowler ILIKE '%Surname2%') OR (batter ILIKE '%Surname2%' AND bowler ILIKE '%Surname1%') LIMIT 10`
+  * NEVER query `fact_player_batting_season` or `fact_player_bowling_season` for a player head-to-head query.
+- When the user says "head to head" or "h2h" between TWO TEAMS:
+  * Query `fact_matches` where `(team_1 = TeamA AND team_2 = TeamB) OR (team_1 = TeamB AND team_2 = TeamA)`.
+- When the user says "compare X and Y" (without "head to head" / "facing each other"):
+  * Compare their overall career or season statistics from `fact_player_batting_season` / `fact_player_bowling_season` (for players) or `fact_matches` / standings (for teams).
 """
+
+TEAM_ALIASES = {
+    "KKR": "Kolkata Knight Riders",
+    "RCB": "Royal Challengers Bengaluru",
+    "CSK": "Chennai Super Kings",
+    "MI": "Mumbai Indians",
+    "SRH": "Sunrisers Hyderabad",
+    "DC": "Delhi Capitals",
+    "DD": "Delhi Capitals",
+    "PBKS": "Punjab Kings",
+    "KXIP": "Punjab Kings",
+    "RR": "Rajasthan Royals",
+    "GT": "Gujarat Titans",
+    "LSG": "Lucknow Super Giants",
+    "RPS": "Rising Pune Supergiant",
+    "RPSG": "Rising Pune Supergiant",
+}
 
 FORBIDDEN_SQL_KEYWORDS = re.compile(
     r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|COPY|EXECUTE|EXEC)\b",
+    re.IGNORECASE,
+)
+
+H2H_OR_COMPARE_PATTERN = re.compile(
+    r"\b(head\s*to\s*head|h2h|facing\s+each\s+other|vs\.?|versus|compare)\b",
+    re.IGNORECASE,
+)
+
+VISUALIZATION_REQUEST_PATTERN = re.compile(
+    r"\b(visuali[sz]e|visuali[sz]ation|chart|charts|graph|graphs|plot|plots)\b",
     re.IGNORECASE,
 )
 
@@ -101,6 +112,77 @@ def get_llm():
     return _llm
 
 
+def _normalize_sql_query(sql: str) -> str:
+    """Automatically expand team abbreviations and normalize slash/hyphen dates."""
+    normalized = sql
+
+    normalized = re.sub(
+        r"(\b(?:[a-z_]+\.)?start_date)\s*=\s*'(\d{4})[-/](\d{2})[-/](\d{2})'",
+        r"REPLACE(\1, '/', '-') = '\2-\3-\4'",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+
+    for abbr, full_name in TEAM_ALIASES.items():
+        normalized = re.sub(
+            rf"'%?{abbr}%?'",
+            f"'{full_name}'",
+            normalized,
+        )
+
+    return normalized
+
+
+def _relax_exact_string_filters(sql: str) -> str:
+    """Convert strict '=' string comparisons on text/name/venue columns into ILIKE wildcards."""
+    relaxed_cols = (
+        "venue",
+        "city",
+        "stage",
+        "player_name",
+        "batter",
+        "bowler",
+        "umpire_1",
+        "umpire_2",
+        "tv_umpire",
+        "player_of_match",
+    )
+    col_pattern = "|".join(relaxed_cols)
+
+    def _to_ilike(match):
+        col = match.group(1)
+        val = match.group(2).strip()
+        if val.startswith("%") or val.endswith("%"):
+            return f"{col} ILIKE '{val}'"
+        parts = val.split()
+        if len(parts) >= 2 and col.split(".")[-1] in ("player_name", "batter", "bowler", "umpire_1", "umpire_2", "tv_umpire", "player_of_match"):
+            return f"{col} ILIKE '%{parts[-1]}%'"
+        return f"{col} ILIKE '%{val}%'"
+
+    relaxed = re.sub(
+        rf"\b((?:[a-z_]+\.)?(?:{col_pattern}))\s*=\s*'([^']+)'",
+        _to_ilike,
+        sql,
+        flags=re.IGNORECASE,
+    )
+
+    def _relax_fullname_ilike(match):
+        col = match.group(1)
+        val = match.group(2).strip("%").strip()
+        parts = val.split()
+        if len(parts) >= 2 and parts[0].lower() not in ("de", "van", "al", "ul", "bin"):
+            return f"{col} ILIKE '%{parts[-1]}%'"
+        return match.group(0)
+
+    relaxed = re.sub(
+        r"\b((?:[a-z_]+\.)?(?:player_name|batter|bowler|umpire_1|umpire_2|tv_umpire|player_of_match))\s+ILIKE\s+'([^']+)'",
+        _relax_fullname_ilike,
+        relaxed,
+        flags=re.IGNORECASE,
+    )
+    return relaxed
+
+
 class AgentState(TypedDict):
     question: str
     user_preferences: dict
@@ -130,11 +212,14 @@ def _format_history(chat_history: list[dict]) -> str:
 # ============================================================================
 
 def classify_intent_node(state: AgentState) -> dict:
+    if H2H_OR_COMPARE_PATTERN.search(state["question"]):
+        return {"intent": "sql"}
+
     llm = get_llm()
     prompt = (
         "Classify the user's IPL cricket question into exactly one label:\n"
         "- 'rag': definitions, cricket rules, general summaries, or conceptual questions.\n"
-        "- 'sql': exact stats, over-by-over match events, phase stats, player matchups, rankings, comparisons, filtering by season/team/player/venue/umpire/toss/match.\n"
+        "- 'sql': exact stats, head-to-head matchups, comparisons, over-by-over match events, phase stats, rankings, filtering by season/team/player/venue/umpire/toss/match.\n"
         "- 'hybrid': needs both exact database numbers AND conceptual/statistical explanation.\n"
         "Respond with ONLY one word: rag, sql, or hybrid."
     )
@@ -178,7 +263,7 @@ def sql_generate_node(state: AgentState) -> dict:
         f"{GOLD_SCHEMA_PROMPT}\n"
         "Rules:\n"
         "1. Write ONLY a single valid PostgreSQL SELECT query.\n"
-        "2. Follow the CRITICAL TEAM NAME, DATE, FINAL MATCH, and PLAYER/UMPIRE NAME rules strictly.\n"
+        "2. Follow the PLAYER NAME & HEAD-TO-HEAD RULES strictly.\n"
         "3. Always include a LIMIT clause (max 50).\n"
         "4. Return ONLY raw SQL with no markdown fences, no explanation, and no trailing semicolon."
     )
@@ -190,11 +275,22 @@ def sql_generate_node(state: AgentState) -> dict:
     raw_sql = resp.content.strip()
     raw_sql = re.sub(r"^```(?:sql)?\s*", "", raw_sql, flags=re.IGNORECASE)
     raw_sql = re.sub(r"\s*```$", "", raw_sql).strip().rstrip(";")
-    return {"sql_query": raw_sql}
+    return {"sql_query": _normalize_sql_query(raw_sql)}
+
+
+def _exec_readonly_sql(sql_query: str) -> list[dict]:
+    with get_engine().connect() as conn:
+        conn.execute(text("SET LOCAL statement_timeout = '8000';"))
+        result = conn.execute(text(sql_query))
+        columns = list(result.keys())
+        return [
+            {col: (float(val) if hasattr(val, "is_finite") else val) for col, val in zip(columns, row)}
+            for row in result.fetchall()
+        ]
 
 
 def sql_validate_execute_node(state: AgentState) -> dict:
-    sql_query = (state.get("sql_query") or "").strip()
+    sql_query = _normalize_sql_query((state.get("sql_query") or "").strip())
 
     if not sql_query:
         return {"sql_results": [], "sql_error": "No SQL query generated."}
@@ -209,20 +305,28 @@ def sql_validate_execute_node(state: AgentState) -> dict:
         sql_query = f"{sql_query} LIMIT 50"
 
     try:
-        with get_engine().connect() as conn:
-            conn.execute(text("SET LOCAL statement_timeout = '8000';"))
-            result = conn.execute(text(sql_query))
-            columns = list(result.keys())
-            rows = [
-                {col: (float(val) if hasattr(val, "is_finite") else val) for col, val in zip(columns, row)}
-                for row in result.fetchall()
-            ]
+        rows = _exec_readonly_sql(sql_query)
+        if not rows:
+            relaxed_sql = _relax_exact_string_filters(sql_query)
+            if relaxed_sql != sql_query:
+                relaxed_rows = _exec_readonly_sql(relaxed_sql)
+                if relaxed_rows:
+                    return {
+                        "sql_query": relaxed_sql,
+                        "sql_results": relaxed_rows,
+                        "sql_error": None,
+                    }
+
         return {"sql_query": sql_query, "sql_results": rows, "sql_error": None}
     except Exception as e:
         return {"sql_results": [], "sql_error": str(e)}
 
 
 def generate_chart_node(state: AgentState) -> dict:
+    # Only generate a chart when the user explicitly asks for a graph/chart/visualization
+    if not VISUALIZATION_REQUEST_PATTERN.search(state.get("question") or ""):
+        return {"chart_spec": None}
+
     rows = state.get("sql_results") or []
     if len(rows) < 2:
         return {"chart_spec": None}
@@ -231,7 +335,6 @@ def generate_chart_node(state: AgentState) -> dict:
     if len(columns) < 2:
         return {"chart_spec": None}
 
-    # Skip auto-charting if this is a ball-by-ball over breakdown
     if "ball_by_ball" in columns:
         return {"chart_spec": None}
 
@@ -273,15 +376,12 @@ def generate_chart_node(state: AgentState) -> dict:
 
 def synthesize_response_node(state: AgentState) -> dict:
     llm = get_llm()
-    prefs = state.get("user_preferences") or {}
     rag_docs = state.get("rag_context") or []
     sql_rows = state.get("sql_results") or []
     sql_err = state.get("sql_error")
     history_str = _format_history(state.get("chat_history") or [])
 
     context_parts = []
-    if prefs:
-        context_parts.append(f"User Preferences: {json.dumps(prefs)}")
     if history_str:
         context_parts.append(f"Recent Conversation:\n{history_str}")
     if rag_docs:
@@ -295,12 +395,12 @@ def synthesize_response_node(state: AgentState) -> dict:
 
     system_prompt = (
         "You are cricketmama.exe, a sharp, friendly IPL cricket data analyst for Know IPL.\n"
-        "Answer the user's question accurately using ONLY the provided context and SQL results. Never fabricate statistics.\n"
-        "Formatting rules for clean readability:\n"
-        "- Use short headings (`### Heading`) and concise bullet points (`- ...`) instead of walls of text.\n"
-        "- When describing over-by-over events, narrate each over clearly with the bowler, batters, runs, wickets, and key balls.\n"
-        "- If using a table, keep it compact (at most 5 columns) with clean cell values and NO escaped backslashes.\n"
-        "- Do not wrap tables or lists in code blocks."
+        "Strict Grounding & Formatting Rules:\n"
+        "1. Answer using ONLY facts present in the SQL Results or Retrieved Knowledge Base. NEVER guess squad rosters, captains, or middle names.\n"
+        "2. For 'head to head' queries, report ONLY face-to-face deliveries/matches between the two sides. If no face-to-face rows exist, state that clearly without substituting career summaries.\n"
+        "3. Keep player names EXACTLY as stored in the database.\n"
+        "4. Use short headings (`### Heading`) and concise bullet points (`- ...`).\n"
+        "5. If you include a Markdown table, ALWAYS leave a blank line before it, put spaces around every `|`, include a `| --- | --- |` separator row, and keep it to at most 5 columns."
     )
     user_msg = f"Question: {state['question']}\n\nContext:\n" + "\n\n".join(context_parts)
     resp = llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_msg)])
@@ -380,7 +480,7 @@ def run_ipl_agent(
     return {
         "intent": final_state["intent"],
         "answer": final_state["answer"],
-        "sql_query": final_state["sql_query"],
+        "sql_query": None,
         "sql_row_count": len(final_state["sql_results"]),
         "sql_error": final_state["sql_error"],
         "chart_spec": final_state["chart_spec"],
