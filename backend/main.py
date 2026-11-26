@@ -27,6 +27,8 @@ allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") i
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    # Accept production and preview Vercel deployments without listing each URL.
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

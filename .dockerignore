@@ -1,0 +1,13 @@
+.git
+.github
+.env
+.env.*
+venv
+.venv
+__pycache__
+*.pyc
+frontend
+data-engineering
+*.parquet
+*.csv
+*.log
