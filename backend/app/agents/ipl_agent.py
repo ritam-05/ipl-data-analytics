@@ -91,7 +91,14 @@ def get_engine():
         db_url = os.getenv("SUPABASE_DB_URL")
         if not db_url:
             raise ValueError("SUPABASE_DB_URL is not set in environment variables.")
-        _engine = create_engine(db_url, pool_pre_ping=True)
+        _engine = create_engine(
+            db_url,
+            pool_pre_ping=True,
+            pool_size=2,
+            max_overflow=2,
+            pool_recycle=300,
+            connect_args={"prepare_threshold": None},
+        )
     return _engine
 
 
