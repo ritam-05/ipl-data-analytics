@@ -1,0 +1,6 @@
+Completed 64/241 rows.
+Completed 128/241 rows.
+Completed 192/241 rows.
+Completed 241/241 rows.
+Populated 241 rows with 1024-dim voyage-4-lite embeddings.
+Verification: total=241, embedded=241, dimensions=1024..1024
