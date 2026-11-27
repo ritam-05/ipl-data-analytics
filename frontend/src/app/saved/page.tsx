@@ -14,7 +14,7 @@ const Plot = dynamic(() => import("react-plotly.js"), { ssr: false }) as Compone
 interface SavedAnalysis {
   id: string;
   question: string;
-  answer: string;
+  summary: string;
   chart_spec?: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any[];
@@ -43,7 +43,7 @@ export default function SavedAnalysesPage() {
 
       const { data, error } = await supabase
         .from("saved_analyses")
-        .select("id, question, answer, chart_spec, created_at")
+        .select("id, question, summary, chart_spec, created_at")
         .order("created_at", { ascending: false });
 
       if (!error && data) {
@@ -210,7 +210,7 @@ export default function SavedAnalysesPage() {
                     ),
                   }}
                 >
-                  {item.answer}
+                  {item.summary}
                 </ReactMarkdown>
 
                 {/* Optional Saved Chart */}
