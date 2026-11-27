@@ -4,7 +4,7 @@ import json
 import logging
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
+import voyageai
 
 # Anchor paths and allow importing from backend/app/services
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +36,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+EMBEDDING_MODEL_NAME = "voyage-4-lite"
+EMBEDDING_BATCH_SIZE = 64
 
 
 def build_documents() -> list[dict]:
@@ -181,16 +182,27 @@ def build_and_load_rag_kb():
         logger.error("SUPABASE_DB_URL is missing in .env.")
         return
 
+    voyage_api_key = os.getenv("VOYAGE_API_KEY")
+    if not voyage_api_key:
+        logger.error("VOYAGE_API_KEY is missing in .env.")
+        return
+
     logger.info("Generating grounded IPL RAG documents from Supabase Gold tables...")
     docs = build_documents()
     logger.info(f"Generated {len(docs)} documents across all categories.")
 
-    logger.info(f"Loading embedding model: {EMBEDDING_MODEL_NAME} (first run downloads ~130 MB)...")
-    model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-
+    client = voyageai.Client(api_key=voyage_api_key)
     texts = [d["content"] for d in docs]
-    logger.info("Generating normalized 384-dim BGE embeddings...")
-    embeddings = model.encode(texts, normalize_embeddings=True, show_progress_bar=True)
+    logger.info("Generating 1024-dim Voyage document embeddings...")
+    embeddings = []
+    for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
+        batch = texts[start : start + EMBEDDING_BATCH_SIZE]
+        result = client.embed(
+            batch,
+            model=EMBEDDING_MODEL_NAME,
+            input_type="document",
+        )
+        embeddings.extend(result.embeddings)
 
     engine = create_engine(db_url, pool_pre_ping=True)
     upsert_sql = text("""
@@ -207,7 +219,7 @@ def build_and_load_rag_kb():
     logger.info("Upserting documents and embeddings into Supabase public.rag_documents...")
     with engine.begin() as conn:
         for doc, emb in zip(docs, embeddings):
-            emb_str = "[" + ",".join(f"{x:.6f}" for x in emb.tolist()) + "]"
+            emb_str = "[" + ",".join(f"{x:.6f}" for x in emb) + "]"
             conn.execute(
                 upsert_sql,
                 {
@@ -225,8 +237,12 @@ def build_and_load_rag_kb():
 
         # Retrieval Evaluation Test
         test_query = "Which stadium favors chasing and what is the chasing advantage in IPL?"
-        q_emb = model.encode([f"Represent this sentence for searching relevant passages: {test_query}"], normalize_embeddings=True)[0]
-        q_emb_str = "[" + ",".join(f"{x:.6f}" for x in q_emb.tolist()) + "]"
+        q_emb = client.embed(
+            [test_query],
+            model=EMBEDDING_MODEL_NAME,
+            input_type="query",
+        ).embeddings[0]
+        q_emb_str = "[" + ",".join(f"{x:.6f}" for x in q_emb) + "]"
 
         search_sql = text("""
             SELECT doc_key, doc_type, ROUND((1 - (embedding <=> CAST(:q_emb AS vector)))::numeric, 4) AS similarity,

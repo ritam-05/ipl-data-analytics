@@ -60,7 +60,7 @@ This application extends the exploratory work in [IPL Data Analysis](https://git
 | API | Python, FastAPI, Uvicorn, SQLAlchemy |
 | Data engineering | PySpark, Pandas, PyArrow |
 | Data platform | Supabase PostgreSQL, pgvector, Row Level Security |
-| AI | LangGraph, LangChain Groq, BAAI `bge-small-en-v1.5` embeddings |
+| AI | LangGraph, LangChain Groq, Voyage `voyage-4-lite` embeddings |
 | Storage | Local Bronze/Silver/Gold layers with optional Amazon S3 synchronization |
 
 ## Architecture
@@ -148,7 +148,8 @@ flowchart TD
 │   ├── etl_gold.py                   # Silver data → eight analytical Gold tables
 │   ├── load_to_supabase.py           # Idempotent Gold-table load to PostgreSQL
 │   ├── build_match_info.py           # Metadata CSV → dim_match_info
-│   ├── build_rag_kb.py               # Grounded documents and 384-dim embeddings
+│   ├── build_rag_kb.py               # Grounded documents and 1024-dim Voyage embeddings
+│   ├── reembed_voyage.py             # One-time BGE-to-Voyage vector migration
 │   ├── upload_to_s3.py               # Optional data-lake synchronization
 │   └── verify_*.py                   # Analytics and agent smoke checks
 ├── frontend/                         # Next.js application
@@ -193,6 +194,7 @@ SUPABASE_DB_URL=postgresql+psycopg://...
 # Required for the AI assistant
 GROQ_API_KEY=your-groq-api-key
 GROQ_MODEL=openai/gpt-oss-120b
+VOYAGE_API_KEY=your-voyage-api-key
 
 # Optional API configuration
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
@@ -211,11 +213,21 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 NEXT_PUBLIC_API_URL=http://127.0.0.1:7860
 ```
 
-> Never put `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`, or `GROQ_API_KEY` in a `NEXT_PUBLIC_*` variable or frontend environment file.
+> Never put `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`, `GROQ_API_KEY`, or `VOYAGE_API_KEY` in a `NEXT_PUBLIC_*` variable or frontend environment file.
 
 ### 3. Provision the database
 
 Run [001_initial_schema.sql](supabase/migrations/001_initial_schema.sql) in the Supabase SQL Editor. It enables pgvector and creates the analytical tables, vector store, user-data tables, indexes, and row-level security policies.
+
+#### Existing vector database migration
+
+Existing installations created with BGE 384-dimensional vectors must be re-embedded before the API uses Voyage. After setting `VOYAGE_API_KEY`, run the one-time migration locally:
+
+```powershell
+python data-engineering/reembed_voyage.py
+```
+
+The migration temporarily drops and recreates the HNSW index, changes `rag_documents.embedding` to `vector(1024)`, and re-embeds every stored document with `voyage-4-lite`.
 
 ### 4. Build and load the warehouse
 
@@ -356,7 +368,7 @@ flowchart TD
 2. **Profile and normalize.** `eda_initial.py` can be run before processing to inspect source structure. `etl_silver.py` reads the raw deliveries with PySpark, standardizes data types and entity names, derives normalized season and event fields, and writes season-partitioned Parquet. This Silver layer is the clean, reproducible event-level base.
 3. **Model analytical facts.** `etl_gold.py` uses Silver data to produce dimensions for seasons, teams, venues, and players plus facts for matches, player batting by season, player bowling by season, and venue performance. It restricts standard match totals to innings one and two so Super Overs do not distort normal innings metrics.
 4. **Load and enrich Supabase.** `load_to_supabase.py` refreshes the Gold tables in PostgreSQL. `build_match_info.py` independently loads `dim_match_info`, adding toss, officials, player of the match, stage, city, outcome, and result-margin fields that are not represented in delivery aggregates.
-5. **Build assistant knowledge.** `build_rag_kb.py` turns verified analytical summaries and cricket metric definitions into documents, encodes them with `BAAI/bge-small-en-v1.5`, and upserts normalized 384-dimensional vectors into `public.rag_documents`.
+5. **Build assistant knowledge.** `build_rag_kb.py` turns verified analytical summaries and cricket metric definitions into documents, encodes them with Voyage `voyage-4-lite`, and upserts 1024-dimensional vectors into `public.rag_documents`.
 6. **Validate and archive.** `verify_analytics.py` and `verify_agent.py` exercise representative data and agent paths. `upload_to_s3.py` can archive the generated Bronze, Silver, and Gold assets after a successful build.
 
 The optional archive is deliberately downstream of local generation: the warehouse can be reproduced locally, while S3 serves as durable synchronization/storage rather than the only source of truth for a development run.

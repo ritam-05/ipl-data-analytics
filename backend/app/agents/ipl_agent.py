@@ -5,7 +5,7 @@ from typing import TypedDict, Optional, Literal
 import numpy as np
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from huggingface_hub import InferenceClient
+import voyageai
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
@@ -13,7 +13,7 @@ from langgraph.graph import StateGraph, END
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
-EMBEDDING_MODEL_NAME = "BAAI/bge-small-en-v1.5"
+EMBEDDING_MODEL_NAME = "voyage-4-lite"
 
 GOLD_SCHEMA_PROMPT = """
 PostgreSQL Schema (all tables in schema 'public'):
@@ -81,7 +81,7 @@ VISUALIZATION_REQUEST_PATTERN = re.compile(
 )
 
 _engine = None
-_embedder: Optional[InferenceClient] = None
+_embedder: Optional[voyageai.Client] = None
 _llm = None
 
 
@@ -102,13 +102,13 @@ def get_engine():
     return _engine
 
 
-def get_embedder() -> InferenceClient:
+def get_embedder() -> voyageai.Client:
     global _embedder
     if _embedder is None:
-        hf_token = os.getenv("HF_TOKEN")
-        if not hf_token:
-            raise ValueError("HF_TOKEN is not set in environment variables.")
-        _embedder = InferenceClient(api_key=hf_token)
+        api_key = os.getenv("VOYAGE_API_KEY")
+        if not api_key:
+            raise ValueError("VOYAGE_API_KEY is not set in environment variables.")
+        _embedder = voyageai.Client(api_key=api_key)
     return _embedder
 
 
@@ -251,12 +251,12 @@ def classify_intent_node(state: AgentState) -> dict:
 
 def rag_retrieve_node(state: AgentState) -> dict:
     client = get_embedder()
-    prompt_text = f"Represent this sentence for searching relevant passages: {state['question']}"
-    raw_vec = client.feature_extraction(prompt_text, model=EMBEDDING_MODEL_NAME)
-
-    vec = np.asarray(raw_vec, dtype=np.float32)
-    while vec.ndim > 1:
-        vec = vec.mean(axis=0)
+    result = client.embed(
+        [state["question"]],
+        model=EMBEDDING_MODEL_NAME,
+        input_type="query",
+    )
+    vec = np.asarray(result.embeddings[0], dtype=np.float32)
     norm = np.linalg.norm(vec)
     if norm > 0:
         vec = vec / norm

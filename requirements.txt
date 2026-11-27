@@ -10,8 +10,8 @@ psycopg[binary]>=3.2.0
 pgvector>=0.3.6
 supabase>=2.10.0
 
-# LLM Orchestration & Hosted Embeddings (Replaces local sentence-transformers/torch)
-huggingface_hub>=0.25.0
+# LLM Orchestration & Hosted Embeddings
+voyageai>=0.3.0
 langchain-core>=0.3.0
 langchain-groq>=0.2.0
 langgraph>=0.2.0
@@ -19,3 +19,4 @@ langgraph>=0.2.0
 # Web API (FastAPI + Uvicorn)
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
+voyageai>=0.3.0

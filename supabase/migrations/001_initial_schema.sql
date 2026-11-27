@@ -101,7 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_bowling_season ON public.fact_player_bowling_seas
 CREATE INDEX IF NOT EXISTS idx_bowling_wickets ON public.fact_player_bowling_season(wickets DESC);
 
 -- ============================================================================
--- SECTION B: VECTOR KNOWLEDGE BASE (PGVECTOR - BGE-SMALL 384 DIM)
+-- SECTION B: VECTOR KNOWLEDGE BASE (PGVECTOR - VOYAGE-4-LITE 1024 DIM)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.rag_documents (
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS public.rag_documents (
     doc_type TEXT NOT NULL, -- 'player_summary', 'team_history', 'season_summary', 'venue_info', 'cricket_term'
     content TEXT NOT NULL,
     metadata JSONB DEFAULT '{}'::jsonb,
-    embedding VECTOR(384),
+    embedding VECTOR(1024),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
