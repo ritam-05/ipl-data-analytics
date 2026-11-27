@@ -1,16 +1,3 @@
----
-title: Know IPL API
-emoji: 🏏
-colorFrom: blue
-colorTo: yellow
-sdk: docker
-app_port: 7860
-pinned: false
----
-
-
-
-
 <div align="center">
   <h1>Know IPL</h1>
   <img src="docs/banner.png" alt="Know IPL — historical IPL analytics and AI research" width="100%" />
@@ -130,6 +117,62 @@ flowchart TD
     G -->|no| A
     P --> A
     A --> O[Answer, optional chart, and session history]
+```
+
+### Tested assistant use cases
+
+The screenshots below are real checks against the application. They illustrate the three evidence paths the assistant uses: semantic retrieval for definitions, controlled SQL for precise records, and hybrid reasoning when a question needs both context and warehouse results.
+
+| Use case | Question pattern | Route and result |
+| --- | --- | --- |
+| Player profile and follow-up | “Ravi Bopara IPL stats” → “Which team did he play for?” | SQL lookup with session context; returns batting/bowling summaries and the teams represented. |
+| Cricket metric explanation | “How are bowling economy rate and bowling strike rate calculated?” | RAG retrieval; explains the formulas, legal-ball treatment, and bowler-credited wickets. |
+| Match-event investigation | “What happened in the 7th over of KKR vs RCB in 2017 at Eden Gardens?” | SQL lookup; returns innings-by-innings ball-by-ball events and a compact summary table. |
+| Player comparison | “Compare Hardik Pandya and Krunal Pandya in IPL batting and bowling.” | SQL comparison; returns matched batting and bowling measures for both players. |
+| Historical ranking | “Who are the top 5 wicket takers in IPL history?” | SQL ranking; returns a concise, ordered result table. |
+
+<p align="center">
+  <img src="docs/test-case1.png" alt="Assistant player statistics and follow-up answer for Ravi Bopara" width="48%" />
+  <img src="docs/test-case2.png" alt="Assistant explanation of bowling economy and strike rates" width="48%" />
+</p>
+<p align="center">
+  <img src="docs/test-case3.png" alt="Assistant answer for a specific KKR versus RCB over" width="31%" />
+  <img src="docs/test-case4.png" alt="Assistant comparison of Hardik Pandya and Krunal Pandya" width="31%" />
+  <img src="docs/test-case5.png" alt="Assistant ranking of IPL wicket takers" width="31%" />
+</p>
+
+### Request lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Authenticated user
+    participant W as Next.js dashboard
+    participant A as FastAPI chat API
+    participant G as LangGraph agent
+    participant V as Voyage API
+    participant D as Supabase PostgreSQL + pgvector
+
+    U->>W: Ask an IPL question
+    W->>A: POST /api/chat (JWT + session ID)
+    A->>G: Question, preferences, recent messages
+    G->>G: Classify as RAG, SQL, or hybrid
+    alt RAG or hybrid
+        G->>V: Embed query with voyage-4-lite (query)
+        V-->>G: 1024-dimensional query vector
+        G->>D: Top 4 cosine-similar knowledge documents
+        D-->>G: Grounded RAG context
+    end
+    alt SQL or hybrid
+        G->>G: Generate one SELECT/WITH statement
+        G->>G: Enforce read-only validation and row limit
+        G->>D: Execute with 8-second statement timeout
+        D-->>G: Analytical rows
+    end
+    G->>G: Optionally build chart specification
+    G-->>A: Grounded answer, results, optional chart
+    A-->>W: Persist message and return response
+    W-->>U: Render Markdown, table, chart, and save action
 ```
 
 ## Repository structure
@@ -349,19 +392,60 @@ Authenticated users can create, switch, and delete chat sessions. Each answer is
 ### End-to-end pipeline
 
 ```mermaid
-flowchart TD
-    A[Cricsheet delivery CSVs and _info.csv files] --> B[eda_initial.py: inspect source shape and quality]
-    B --> C[etl_silver.py]
-    C --> D[Silver Parquet, partitioned by season]
-    D --> E[etl_gold.py]
-    E --> F[Gold Parquet facts and dimensions]
-    F --> G[load_to_supabase.py]
-    A --> H[build_match_info.py]
-    H --> I[dim_match_info in Supabase]
-    G --> J[Analytical tables in Supabase]
-    J --> K[build_rag_kb.py]
-    K --> L[Embedded rag_documents in pgvector]
-    F --> M[Optional upload_to_s3.py]
+flowchart LR
+    subgraph Source[Source and ingestion]
+        RAW[Cricsheet IPL CSV files]
+        DEL[Delivery CSV files]
+        INFO[Match info CSV files]
+        RAW --> DEL
+        RAW --> INFO
+        EDA[eda_initial.py]
+        DEL --> EDA
+    end
+
+    subgraph Lake[Local data lake]
+        SILVER[etl_silver.py]
+        SILVER_DATA[Silver Parquet<br/>season partitioned]
+        GOLD[etl_gold.py]
+        GOLD_DATA[Gold Parquet<br/>facts and dimensions]
+        EDA --> SILVER --> SILVER_DATA --> GOLD --> GOLD_DATA
+    end
+
+    subgraph Warehouse[Supabase analytical warehouse]
+        LOAD[load_to_supabase.py]
+        MATCH_INFO[build_match_info.py]
+        ANALYTICS[(Gold analytical tables)]
+        ENRICHED[(dim_match_info)]
+        GOLD_DATA --> LOAD --> ANALYTICS
+        INFO --> MATCH_INFO --> ENRICHED
+    end
+
+    subgraph Assistant[Grounded assistant]
+        KB[build_rag_kb.py]
+        VECTORS[(rag_documents<br/>Voyage 1024 dimensional vectors)]
+        ANALYTICS --> KB --> VECTORS
+        ENRICHED --> KB
+    end
+
+    subgraph Delivery[Validation and delivery]
+        VERIFY_A[verify_analytics.py]
+        VERIFY_G[verify_agent.py]
+        API[FastAPI analytics and chat API]
+        WEB[Next.js dashboard]
+        ANALYTICS --> VERIFY_A
+        VECTORS --> VERIFY_G
+        ANALYTICS --> API
+        VECTORS --> API
+        API --> WEB
+    end
+
+    subgraph Archive[Optional archival]
+        S3[upload_to_s3.py]
+        BUCKET[(Amazon S3)]
+        RAW -. archive .-> S3
+        SILVER_DATA -. archive .-> S3
+        GOLD_DATA -. archive .-> S3 --> BUCKET
+    end
 ```
 
 1. **Land source files.** Extract Cricsheet delivery CSVs and their corresponding `_info.csv` files into `data-engineering/bronze/cricsheet_raw/`. Delivery files supply ball-by-ball events; info files supply match-level metadata.
@@ -379,6 +463,64 @@ The Gold layer creates these analytical tables:
 - Facts: `fact_matches`, `fact_player_batting_season`, `fact_player_bowling_season`, `fact_venue_stats`
 - Enriched metadata: `dim_match_info`
 
+### Analytical data model
+
+The Gold layer keeps match-level events separate from season-level player aggregates. The diagram shows the logical analysis relationships used by the API and Text-to-SQL agent; it is intentionally a compact view rather than a full column-by-column schema.
+
+```mermaid
+erDiagram
+    DIM_SEASONS ||--o{ FACT_MATCHES : groups
+    DIM_SEASONS ||--o{ FACT_PLAYER_BATTING_SEASON : filters
+    DIM_SEASONS ||--o{ FACT_PLAYER_BOWLING_SEASON : filters
+    DIM_TEAMS ||--o{ FACT_MATCHES : competes_in
+    DIM_TEAMS ||--o{ FACT_PLAYER_BATTING_SEASON : represents
+    DIM_TEAMS ||--o{ FACT_PLAYER_BOWLING_SEASON : represents
+    DIM_PLAYERS ||--o{ FACT_PLAYER_BATTING_SEASON : accumulates
+    DIM_PLAYERS ||--o{ FACT_PLAYER_BOWLING_SEASON : accumulates
+    DIM_VENUES ||--|| FACT_VENUE_STATS : summarizes
+    DIM_VENUES ||--o{ FACT_MATCHES : hosts
+
+    DIM_SEASONS {
+        int season PK
+        int total_matches
+    }
+    DIM_TEAMS {
+        string team_name PK
+    }
+    DIM_PLAYERS {
+        string player_name PK
+    }
+    DIM_VENUES {
+        string venue_name PK
+    }
+    FACT_MATCHES {
+        int match_id PK
+        int season FK
+        string team_1
+        string team_2
+        string winner
+    }
+    FACT_PLAYER_BATTING_SEASON {
+        string player_name PK
+        int season PK
+        string team PK
+        int runs
+        float strike_rate
+    }
+    FACT_PLAYER_BOWLING_SEASON {
+        string player_name PK
+        int season PK
+        string team PK
+        int wickets
+        float economy_rate
+    }
+    FACT_VENUE_STATS {
+        string venue PK
+        float avg_first_innings_score
+        float chase_win_pct
+    }
+```
+
 ### Vector knowledge-base document index
 
 ### How the RAG assistant works
@@ -391,13 +533,13 @@ The Gold layer creates these analytical tables:
 | Exact rankings, comparisons, match events, filters, and head-to-head queries | Text-to-SQL | Results from a generated read-only PostgreSQL query |
 | Questions that need both an exact figure and interpretation | Hybrid | RAG context plus validated SQL results |
 
-For retrieval, the assistant embeds the question using `BAAI/bge-small-en-v1.5`, performs a pgvector nearest-neighbour search, and passes the four closest knowledge documents to the response model. The knowledge base is not a scraped corpus: it is generated from cricket definitions and the project’s own Gold-table summaries for players, bowlers, teams, seasons, venues, and statistical findings. Rebuilding it after a warehouse refresh keeps the semantic context aligned with the analytical database.
+For retrieval, the assistant embeds the question with Voyage `voyage-4-lite` using `input_type="query"`, performs a pgvector cosine nearest-neighbour search, and passes the four closest knowledge documents to the response model. Document vectors use the same model with `input_type="document"` and are stored as 1024-dimensional `vector` values. The knowledge base is not a scraped corpus: it is generated from cricket definitions and the project’s own Gold-table summaries for players, bowlers, teams, seasons, venues, and statistical findings. Rebuilding it after a warehouse refresh keeps the semantic context aligned with the analytical database.
 
 For numerical questions, the model is prompted with the allowed Gold schema and generates one PostgreSQL `SELECT` or `WITH` statement. Before execution, the backend rejects non-read-only statements, write/DDL keywords, semicolons (which could indicate multiple statements), and unbounded output; it applies a `LIMIT` of at most 50 rows and an 8-second statement timeout. Team aliases and practical name/date normalization help the generated query match the stored Cricsheet conventions. If a query returns no rows, selected exact text filters can be relaxed to case-insensitive matching before the assistant gives up.
 
 Finally, the response model receives only the retrieved documents and/or query results, plus short recent conversation context. It is instructed to ground its claims in that evidence, preserve database player names, and state absent head-to-head data rather than replacing it with a career summary. A chart is generated only on an explicit visualization request with at least two suitable result rows; otherwise the assistant returns a concise, evidence-backed text response.
 
-The following is the supplied snapshot of documents currently represented in the pgvector knowledge base. Documents are embedded with `BAAI/bge-small-en-v1.5` (384 dimensions) and retrieved semantically by the AI assistant; the full document body and embedding remain in `public.rag_documents` rather than the README.
+The following is a representative index of documents in the pgvector knowledge base. Documents are embedded with Voyage `voyage-4-lite` (1024 dimensions) and retrieved semantically by the AI assistant; the full document body and embedding remain in `public.rag_documents` rather than the README.
 
 | Document key | Type | Indexed subject |
 | --- | --- | --- |
