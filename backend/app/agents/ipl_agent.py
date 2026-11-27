@@ -2,9 +2,10 @@ import os
 import re
 import json
 from typing import TypedDict, Optional, Literal
+import numpy as np
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sentence_transformers import SentenceTransformer
+from huggingface_hub import InferenceClient
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
@@ -80,7 +81,7 @@ VISUALIZATION_REQUEST_PATTERN = re.compile(
 )
 
 _engine = None
-_embedder = None
+_embedder: Optional[InferenceClient] = None
 _llm = None
 
 
@@ -89,15 +90,18 @@ def get_engine():
     if _engine is None:
         db_url = os.getenv("SUPABASE_DB_URL")
         if not db_url:
-            raise ValueError("SUPABASE_DB_URL is not set in .env.")
+            raise ValueError("SUPABASE_DB_URL is not set in environment variables.")
         _engine = create_engine(db_url, pool_pre_ping=True)
     return _engine
 
 
-def get_embedder():
+def get_embedder() -> InferenceClient:
     global _embedder
     if _embedder is None:
-        _embedder = SentenceTransformer(EMBEDDING_MODEL_NAME)
+        hf_token = os.getenv("HF_TOKEN")
+        if not hf_token:
+            raise ValueError("HF_TOKEN is not set in environment variables.")
+        _embedder = InferenceClient(api_key=hf_token)
     return _embedder
 
 
@@ -106,7 +110,7 @@ def get_llm():
     if _llm is None:
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            raise ValueError("GROQ_API_KEY is not set in .env.")
+            raise ValueError("GROQ_API_KEY is not set in environment variables.")
         model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
         _llm = ChatGroq(api_key=api_key, model=model_name, temperature=0.1, max_retries=2)
     return _llm
@@ -155,7 +159,15 @@ def _relax_exact_string_filters(sql: str) -> str:
         if val.startswith("%") or val.endswith("%"):
             return f"{col} ILIKE '{val}'"
         parts = val.split()
-        if len(parts) >= 2 and col.split(".")[-1] in ("player_name", "batter", "bowler", "umpire_1", "umpire_2", "tv_umpire", "player_of_match"):
+        if len(parts) >= 2 and col.split(".")[-1] in (
+            "player_name",
+            "batter",
+            "bowler",
+            "umpire_1",
+            "umpire_2",
+            "tv_umpire",
+            "player_of_match",
+        ):
             return f"{col} ILIKE '%{parts[-1]}%'"
         return f"{col} ILIKE '%{val}%'"
 
@@ -231,12 +243,18 @@ def classify_intent_node(state: AgentState) -> dict:
 
 
 def rag_retrieve_node(state: AgentState) -> dict:
-    embedder = get_embedder()
-    q_emb = embedder.encode(
-        [f"Represent this sentence for searching relevant passages: {state['question']}"],
-        normalize_embeddings=True,
-    )[0]
-    q_emb_str = "[" + ",".join(f"{x:.6f}" for x in q_emb.tolist()) + "]"
+    client = get_embedder()
+    prompt_text = f"Represent this sentence for searching relevant passages: {state['question']}"
+    raw_vec = client.feature_extraction(prompt_text, model=EMBEDDING_MODEL_NAME)
+
+    vec = np.asarray(raw_vec, dtype=np.float32)
+    while vec.ndim > 1:
+        vec = vec.mean(axis=0)
+    norm = np.linalg.norm(vec)
+    if norm > 0:
+        vec = vec / norm
+
+    q_emb_str = "[" + ",".join(f"{x:.6f}" for x in vec.tolist()) + "]"
 
     sql = text("""
         SELECT doc_key, doc_type, content,
@@ -323,7 +341,6 @@ def sql_validate_execute_node(state: AgentState) -> dict:
 
 
 def generate_chart_node(state: AgentState) -> dict:
-    # Only generate a chart when the user explicitly asks for a graph/chart/visualization
     if not VISUALIZATION_REQUEST_PATTERN.search(state.get("question") or ""):
         return {"chart_spec": None}
 
@@ -388,17 +405,16 @@ def synthesize_response_node(state: AgentState) -> dict:
         rag_text = "\n".join(f"- [{d['doc_type']}] {d['content']}" for d in rag_docs)
         context_parts.append(f"Retrieved Knowledge Base:\n{rag_text}")
     if sql_rows:
-        context_parts.append(f"SQL Query Executed: {state.get('sql_query')}")
-        context_parts.append(f"SQL Results (top {len(sql_rows)} rows):\n{json.dumps(sql_rows[:40], default=str)}")
+        context_parts.append(f"Data Results (top {len(sql_rows)} rows):\n{json.dumps(sql_rows[:40], default=str)}")
     elif sql_err:
-        context_parts.append(f"SQL Note: Query could not execute ({sql_err}). Rely on retrieved knowledge if available.")
+        context_parts.append(f"Data Note: Lookup failed ({sql_err}). Rely on retrieved knowledge if available.")
 
     system_prompt = (
         "You are cricketmama.exe, a sharp, friendly IPL cricket data analyst for Know IPL.\n"
         "Strict Grounding & Formatting Rules:\n"
-        "1. Answer using ONLY facts present in the SQL Results or Retrieved Knowledge Base. NEVER guess squad rosters, captains, or middle names.\n"
+        "1. Answer using ONLY facts present in the Data Results or Retrieved Knowledge Base. NEVER guess squad rosters, captains, or middle names, and NEVER mention SQL queries or database tables.\n"
         "2. For 'head to head' queries, report ONLY face-to-face deliveries/matches between the two sides. If no face-to-face rows exist, state that clearly without substituting career summaries.\n"
-        "3. Keep player names EXACTLY as stored in the database.\n"
+        "3. Keep player names EXACTLY as stored in the data.\n"
         "4. Use short headings (`### Heading`) and concise bullet points (`- ...`).\n"
         "5. If you include a Markdown table, ALWAYS leave a blank line before it, put spaces around every `|`, include a `| --- | --- |` separator row, and keep it to at most 5 columns."
     )

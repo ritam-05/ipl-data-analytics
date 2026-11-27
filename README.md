@@ -1,5 +1,19 @@
+---
+title: Know IPL API
+emoji: 🏏
+colorFrom: blue
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+
+
+
 <div align="center">
   <h1>Know IPL</h1>
+  <img src="docs/banner.png" alt="Know IPL — historical IPL analytics and AI research" width="100%" />
   <p><strong>A full-stack IPL intelligence platform for historical analytics, data exploration, and AI-assisted research.</strong></p>
   <p>
     <a href="#quick-start">Quick start</a> ·
@@ -15,6 +29,19 @@
 Know IPL transforms ball-by-ball Indian Premier League data into a query-ready analytical warehouse and an authenticated dashboard. It combines interactive visualizations, statistical analysis, and `cricketmama.exe`—an AI assistant that can retrieve cricket knowledge, safely query the warehouse, and return chart-ready results.
 
 The loaded historical coverage is determined by the Cricsheet IPL CSV files supplied to the pipeline. The application and its analytics are designed around seasons from 2008 onward.
+
+### Power BI research reference
+
+This application extends the exploratory work in [IPL Data Analysis](https://github.com/ritam-05/ipl-data-analysis). The Power BI dashboards below are historical design and analysis references; Know IPL turns that work into an interactive Next.js and FastAPI product backed by a reproducible data warehouse.
+
+<p align="center">
+  <img src="docs/overview-pg1.png" alt="Power BI IPL overview dashboard" width="48%" />
+  <img src="docs/player-analytics-pg2.png" alt="Power BI player analytics dashboard" width="48%" />
+</p>
+<p align="center">
+  <img src="docs/venue-analytics-pg3.png" alt="Power BI venue analytics dashboard" width="48%" />
+  <img src="docs/head2head-analytics-pg4.png" alt="Power BI head-to-head dashboard" width="48%" />
+</p>
 
 ## What it delivers
 
@@ -37,6 +64,26 @@ The loaded historical coverage is determined by the Cricsheet IPL CSV files supp
 | Storage | Local Bronze/Silver/Gold layers with optional Amazon S3 synchronization |
 
 ## Architecture
+
+The platform separates data preparation, analytical storage, API delivery, and browser experience. Raw match events are transformed once, loaded into a relational analytical model, and then reused by both the dashboard and the AI assistant.
+
+```mermaid
+flowchart LR
+    A[Cricsheet IPL CSV files] --> B[Bronze: source archive]
+    B --> C[Silver ETL: PySpark cleaning and normalization]
+    C --> D[Gold ETL: dimensions and analytical facts]
+    D --> E[(Supabase PostgreSQL)]
+    D --> F[Knowledge-base builder]
+    F --> G[(pgvector rag_documents)]
+    E --> H[FastAPI analytics service]
+    G --> H
+    H --> I[Next.js dashboard]
+    J[Supabase Auth] --> I
+    I -->|JWT-authenticated requests| H
+    K[Optional Amazon S3 archive] -. sync .-> B
+    K -. sync .-> C
+    K -. sync .-> D
+```
 
 ```text
 Cricsheet IPL CSVs
@@ -64,6 +111,26 @@ Question → Intent classification → RAG retrieval and/or Text-to-SQL → SQL 
 ```
 
 The assistant routes conceptual questions to vector retrieval, numerical questions to Text-to-SQL, and mixed questions through both paths. Generated SQL must be one `SELECT` or `WITH` statement; write operations and multi-statement queries are rejected.
+
+### Assistant decision flow
+
+```mermaid
+flowchart TD
+    Q[User question + recent conversation] --> C{Intent classifier}
+    C -->|RAG| R[Embed question and retrieve top 4 pgvector documents]
+    C -->|SQL| S[Generate PostgreSQL SELECT or WITH query]
+    C -->|Hybrid| R
+    R -->|Hybrid only| S
+    R --> A[Grounded response synthesis]
+    S --> V{Safety validation}
+    V -->|valid read-only query| X[Execute with timeout and result limit]
+    V -->|blocked or failed| A
+    X --> G{Visualization requested and usable rows returned?}
+    G -->|yes| P[Build chart specification]
+    G -->|no| A
+    P --> A
+    A --> O[Answer, optional chart, and session history]
+```
 
 ## Repository structure
 
@@ -198,6 +265,66 @@ Open [http://localhost:3000](http://localhost:3000). The interactive API referen
 | AI assistant | Multi-session question answering, SQL visibility, dynamic charts, and saved analyses |
 | Settings | Display name, favourite team, and favourite player preferences that personalize AI context |
 
+## Website guide
+
+Every analytics screen calls the FastAPI service rather than embedding a static export. Filters, search terms, and selected franchises are therefore applied to the warehouse-backed data returned by the API.
+
+### Overview (`/`)
+
+The landing dashboard provides the quickest read of the competition: headline counts for seasons, matches, players, teams, venues, average first-innings score, and highest team score; two statistically tested findings; and four complementary charts.
+
+| Chart | What it shows | How to read it |
+| --- | --- | --- |
+| **Average 1st innings vs average 2nd innings** | Two season-by-season scoring series. | Compare the lines to see whether first-innings scoring and chase scoring are moving together or apart. |
+| **Total matches won by teams** | All-time wins for each franchise. | The horizontal ranking highlights volume of success; it is not a win-rate comparison. |
+| **Match outcomes** | Donut split of wins by wickets, wins by runs, ties/super overs, and no results. | It gives a high-level view of the relative frequency of chasing and defending outcomes. |
+| **Total fours and total sixes** | Boundary totals by season. | Use the two trend lines to see how the scoring mix has evolved. |
+
+The statistical cards report the chase-win percentage with an exact binomial test and the difference between the 2008–2017 and 2018–2026 first-innings scoring eras with Welch’s t-test. They should be interpreted with their displayed p-values rather than as causal claims.
+
+### Player analytics (`/players`)
+
+This page has batting, bowling, consistency, and complete-directory tabs. Search applies across the active view, while the season selector changes batting, bowling, and directory results. The directory is paginated and combines batting and bowling career fields in one searchable table.
+
+| Chart | What it shows | How to read it |
+| --- | --- | --- |
+| **Most consistent batters** | Lowest coefficient of variation (CV) among qualifying multi-season run scorers. | Lower CV means less season-to-season variation in run production; it is not a measure of peak output. |
+| **Distribution of runs for top run scorers** | Stacked running runs, runs from fours, and runs from sixes. | Reveals how leading batters accumulated their runs, separating boundary value from other scoring. |
+| **Total wickets** | Wickets for the leading bowlers in the current filter. | A volume comparison; consult the table for economy, average, and strike rate. |
+| **Total runs and career batting strike rate** | Bars for career runs and a second-axis line for strike rate. | Use the two axes to compare longevity/volume with scoring pace without treating their scales as interchangeable. |
+
+The accompanying tables expose matches, runs, averages, strike rates, boundaries, high score, wickets, overs, economy, bowling average, and bowling strike rate. A dash represents a metric that is undefined rather than zero—for example, a batting average with no dismissals.
+
+### Team analytics (`/teams`)
+
+Choose an all-time or individual season view, then select any two teams in the **Head-to-Head Rivalry Comparator**. It returns their meeting count, wins for each side, and ties/no-results. The **Win Percentage by Franchise** bar chart is the rate-based counterpart to the overview’s all-time win total; the standings table adds matches, wins, and batting-first/chasing win splits. Selecting a standings row opens a deeper franchise summary, including its season record and the detailed matchup context.
+
+### Venue analytics (`/venues`)
+
+Venue results are designed to separate scoring environment from match-result tendency.
+
+| Chart | What it shows | How to read it |
+| --- | --- | --- |
+| **Average 1st innings by venue** | Top qualifying venues ranked by average first-innings score. | A higher bar signals historical scoring conditions, not a guaranteed par score for a future match. |
+| **Defending vs chase wins by venue** | Grouped bars for wins batting first and wins while chasing. | Compare bar pairs for the venues shown; sample size remains important. |
+| **Defend vs chase wins** | Donut chart aggregating those two outcomes across the filtered venues. | Summarizes the overall tactical balance of the displayed venue set. |
+
+The venue table provides total matches, first-innings average and extremes, both win counts, and chase-win percentage so that the charted patterns can be checked against their underlying sample.
+
+### Season and match analytics (`/seasons`)
+
+The season selector controls the **Matches by Season** bar chart, which provides a quick view of schedule size across the available seasons. Two ranked match tables complement it: **Highest Scoring Matches (Combined Runs)** finds the biggest aggregate scorelines, and **Closest Run-Margin Thrillers** surfaces narrow victories decided by runs. These are match-level explorations rather than season-average measures.
+
+### cricketmama.exe (`/assistant`)
+
+Authenticated users can create, switch, and delete chat sessions. Each answer is grounded in retrieved knowledge, database results, or both; the interface can display the generated SQL when applicable. When a question explicitly asks for a chart and the result has a suitable categorical/time field plus a numeric field, the assistant returns a bar chart or line-and-marker chart with the answer. Conversations retain a rolling recent context, and useful responses can be saved.
+
+### Saved analyses, profile, and authentication
+
+- **Saved analyses (`/saved`)** lists a user’s saved questions and responses, including any chart specification, so a useful investigation can be revisited without rerunning it.
+- **Profile & AI preferences (`/settings`)** stores a display name, favourite team, and favourite player. These details are available as personalization context for the assistant.
+- **Login (`/login`)** uses Supabase email authentication. Protected assistant, saved-analysis, and settings views redirect unauthenticated visitors to sign in.
+
 ## Data pipeline
 
 | Layer | Format | Responsibility |
@@ -207,6 +334,33 @@ Open [http://localhost:3000](http://localhost:3000). The interactive API referen
 | Gold | Parquet + PostgreSQL | Query-optimized dimensions, facts, and pre-aggregated venue statistics |
 | Knowledge base | PostgreSQL + pgvector | Grounded cricket definitions and data-derived player, team, season, and venue summaries |
 
+### End-to-end pipeline
+
+```mermaid
+flowchart TD
+    A[Cricsheet delivery CSVs and _info.csv files] --> B[eda_initial.py: inspect source shape and quality]
+    B --> C[etl_silver.py]
+    C --> D[Silver Parquet, partitioned by season]
+    D --> E[etl_gold.py]
+    E --> F[Gold Parquet facts and dimensions]
+    F --> G[load_to_supabase.py]
+    A --> H[build_match_info.py]
+    H --> I[dim_match_info in Supabase]
+    G --> J[Analytical tables in Supabase]
+    J --> K[build_rag_kb.py]
+    K --> L[Embedded rag_documents in pgvector]
+    F --> M[Optional upload_to_s3.py]
+```
+
+1. **Land source files.** Extract Cricsheet delivery CSVs and their corresponding `_info.csv` files into `data-engineering/bronze/cricsheet_raw/`. Delivery files supply ball-by-ball events; info files supply match-level metadata.
+2. **Profile and normalize.** `eda_initial.py` can be run before processing to inspect source structure. `etl_silver.py` reads the raw deliveries with PySpark, standardizes data types and entity names, derives normalized season and event fields, and writes season-partitioned Parquet. This Silver layer is the clean, reproducible event-level base.
+3. **Model analytical facts.** `etl_gold.py` uses Silver data to produce dimensions for seasons, teams, venues, and players plus facts for matches, player batting by season, player bowling by season, and venue performance. It restricts standard match totals to innings one and two so Super Overs do not distort normal innings metrics.
+4. **Load and enrich Supabase.** `load_to_supabase.py` refreshes the Gold tables in PostgreSQL. `build_match_info.py` independently loads `dim_match_info`, adding toss, officials, player of the match, stage, city, outcome, and result-margin fields that are not represented in delivery aggregates.
+5. **Build assistant knowledge.** `build_rag_kb.py` turns verified analytical summaries and cricket metric definitions into documents, encodes them with `BAAI/bge-small-en-v1.5`, and upserts normalized 384-dimensional vectors into `public.rag_documents`.
+6. **Validate and archive.** `verify_analytics.py` and `verify_agent.py` exercise representative data and agent paths. `upload_to_s3.py` can archive the generated Bronze, Silver, and Gold assets after a successful build.
+
+The optional archive is deliberately downstream of local generation: the warehouse can be reproduced locally, while S3 serves as durable synchronization/storage rather than the only source of truth for a development run.
+
 The Gold layer creates these analytical tables:
 
 - Dimensions: `dim_seasons`, `dim_teams`, `dim_venues`, `dim_players`
@@ -214,6 +368,22 @@ The Gold layer creates these analytical tables:
 - Enriched metadata: `dim_match_info`
 
 ### Vector knowledge-base document index
+
+### How the RAG assistant works
+
+`cricketmama.exe` is a routed, grounded assistant rather than a free-form chatbot. Its LangGraph workflow makes three choices:
+
+| Question type | Route | Evidence used |
+| --- | --- | --- |
+| Definitions, cricket rules, and high-level historical summaries | RAG | Semantic matches from `public.rag_documents` |
+| Exact rankings, comparisons, match events, filters, and head-to-head queries | Text-to-SQL | Results from a generated read-only PostgreSQL query |
+| Questions that need both an exact figure and interpretation | Hybrid | RAG context plus validated SQL results |
+
+For retrieval, the assistant embeds the question using `BAAI/bge-small-en-v1.5`, performs a pgvector nearest-neighbour search, and passes the four closest knowledge documents to the response model. The knowledge base is not a scraped corpus: it is generated from cricket definitions and the project’s own Gold-table summaries for players, bowlers, teams, seasons, venues, and statistical findings. Rebuilding it after a warehouse refresh keeps the semantic context aligned with the analytical database.
+
+For numerical questions, the model is prompted with the allowed Gold schema and generates one PostgreSQL `SELECT` or `WITH` statement. Before execution, the backend rejects non-read-only statements, write/DDL keywords, semicolons (which could indicate multiple statements), and unbounded output; it applies a `LIMIT` of at most 50 rows and an 8-second statement timeout. Team aliases and practical name/date normalization help the generated query match the stored Cricsheet conventions. If a query returns no rows, selected exact text filters can be relaxed to case-insensitive matching before the assistant gives up.
+
+Finally, the response model receives only the retrieved documents and/or query results, plus short recent conversation context. It is instructed to ground its claims in that evidence, preserve database player names, and state absent head-to-head data rather than replacing it with a career summary. A chart is generated only on an explicit visualization request with at least two suitable result rows; otherwise the assistant returns a concise, evidence-backed text response.
 
 The following is the supplied snapshot of documents currently represented in the pgvector knowledge base. Documents are embedded with `BAAI/bge-small-en-v1.5` (384 dimensions) and retrieved semantically by the AI assistant; the full document body and embedding remain in `public.rag_documents` rather than the README.
 

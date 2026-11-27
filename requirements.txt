@@ -1,24 +1,17 @@
-# Core Data Engineering & ETL
-pandas==3.1.1
-numpy==2.5.4
-pyspark==4.3.0
-pyarrow==26.0.1
+# Core Data & Statistical Computation
+pandas>=2.2.0
+numpy>=1.26.0
 scipy>=1.13.0
-
-# AWS S3 & Environment Management
-boto3>=1.34.0
 python-dotenv>=1.0.0
 
-# Optional: Local EDA
-jupyter==1.1.1
-
-# Supabase PostgreSQL Connectivity
+# Supabase PostgreSQL & Auth Connectivity
 SQLAlchemy>=2.0.0
 psycopg[binary]>=3.2.0
 pgvector>=0.3.6
+supabase>=2.10.0
 
-# RAG Embeddings (BGE-small 384-dim)
-sentence-transformers>=3.0.0
+# LLM Orchestration & Hosted Embeddings (Replaces local sentence-transformers/torch)
+huggingface_hub>=0.25.0
 langchain-core>=0.3.0
 langchain-groq>=0.2.0
 langgraph>=0.2.0
@@ -26,4 +19,3 @@ langgraph>=0.2.0
 # Web API (FastAPI + Uvicorn)
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
-supabase>=2.10.0
