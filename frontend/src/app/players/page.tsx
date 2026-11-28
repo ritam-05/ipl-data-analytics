@@ -154,6 +154,16 @@ export default function PlayersPage() {
     strike_rate: b.strike_rate,
   }));
 
+  const bestEconomyBowlersData = [...filteredBowlers]
+    .filter((bw) => bw.economy_rate != null)
+    .sort((a, b) => a.economy_rate - b.economy_rate)
+    .slice(0, 15);
+
+  const bestBowlingSrData = [...filteredBowlers]
+    .filter((bw): bw is BowlerRow & { bowling_strike_rate: number } => bw.bowling_strike_rate != null)
+    .sort((a, b) => a.bowling_strike_rate - b.bowling_strike_rate)
+    .slice(0, 10);
+
   const totalPages = Math.max(1, Math.ceil(totalPlayers / PAGE_SIZE));
 
   return (
@@ -386,64 +396,134 @@ export default function PlayersPage() {
         </>
       ) : (
         <>
-          {/* Visual Analytics Grid: Boundary/Running Split + Total Wickets + Total Runs & Career Batting SR */}
+          {/* Visual Analytics Grid */}
           <div className="grid gap-6 lg:grid-cols-12">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 lg:col-span-6">
-              <h2 className="text-sm font-semibold text-white">
-                Distribution of Runs for Top Run Scorers
-              </h2>
-              <p className="mb-4 text-xs text-slate-400">
-                Running Runs, Sixes Runs (6×6s) and Fours Runs (4×4s) by player_name
-              </p>
-              <div className="h-96 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={runDistributionData}
-                    layout="vertical"
-                    margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis type="number" stroke="#94a3b8" fontSize={11} />
-                    <YAxis
-                      type="category"
-                      dataKey="player_name"
-                      stroke="#cbd5e1"
-                      fontSize={10}
-                      width={110}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0f172a",
-                        borderColor: "#334155",
-                        borderRadius: 8,
-                      }}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="running_runs"
-                      name="Running Runs"
-                      stackId="runs"
-                      fill="#0ea5e9"
-                    />
-                    <Bar
-                      dataKey="sixes_runs"
-                      name="Sixes Runs"
-                      stackId="runs"
-                      fill="#1e3a8a"
-                    />
-                    <Bar
-                      dataKey="fours_runs"
-                      name="Fours Runs"
-                      stackId="runs"
-                      fill="#ea580c"
-                      radius={[0, 4, 4, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+            {/* Left Card: Batting Run Distribution OR Bowler Best Economy Rate by Wickets */}
+            {tab === "bowlers" ? (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 lg:col-span-6">
+                <h2 className="text-sm font-semibold text-white">
+                  Best Economy Rate by Wickets
+                </h2>
+                <p className="mb-4 text-xs text-slate-400">
+                  Lowest economy rate among top wicket-takers with total wickets
+                </p>
+                <div className="h-96 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={bestEconomyBowlersData}
+                      layout="vertical"
+                      margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis
+                        xAxisId="econ"
+                        type="number"
+                        domain={["dataMin - 0.5", "dataMax + 0.5"]}
+                        stroke="#10b981"
+                        fontSize={11}
+                      />
+                      <XAxis
+                        xAxisId="wkts"
+                        type="number"
+                        orientation="top"
+                        stroke="#0284c7"
+                        fontSize={11}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="player_name"
+                        stroke="#cbd5e1"
+                        fontSize={10}
+                        width={110}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#0f172a",
+                          borderColor: "#334155",
+                          borderRadius: 8,
+                        }}
+                      />
+                      <Legend />
+                      <Bar
+                        xAxisId="wkts"
+                        dataKey="total_wickets"
+                        name="Total Wickets"
+                        fill="#0284c7"
+                        radius={[0, 4, 4, 0]}
+                        barSize={14}
+                      />
+                      <Line
+                        xAxisId="econ"
+                        type="monotone"
+                        dataKey="economy_rate"
+                        name="Economy Rate"
+                        stroke="#10b981"
+                        strokeWidth={2.5}
+                        dot={{ r: 3 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 lg:col-span-6">
+                <h2 className="text-sm font-semibold text-white">
+                  Distribution of Runs for Top Run Scorers
+                </h2>
+                <p className="mb-4 text-xs text-slate-400">
+                  Running Runs, Sixes Runs (6×6s) and Fours Runs (4×4s) by player_name
+                </p>
+                <div className="h-96 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={runDistributionData}
+                      layout="vertical"
+                      margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis type="number" stroke="#94a3b8" fontSize={11} />
+                      <YAxis
+                        type="category"
+                        dataKey="player_name"
+                        stroke="#cbd5e1"
+                        fontSize={10}
+                        width={110}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#0f172a",
+                          borderColor: "#334155",
+                          borderRadius: 8,
+                        }}
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey="running_runs"
+                        name="Running Runs"
+                        stackId="runs"
+                        fill="#0ea5e9"
+                      />
+                      <Bar
+                        dataKey="sixes_runs"
+                        name="Sixes Runs"
+                        stackId="runs"
+                        fill="#1e3a8a"
+                      />
+                      <Bar
+                        dataKey="fours_runs"
+                        name="Fours Runs"
+                        stackId="runs"
+                        fill="#ea580c"
+                        radius={[0, 4, 4, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-6 lg:col-span-6">
+              {/* Top-Right Card: Total Wickets */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <h2 className="text-sm font-semibold text-white">Total Wickets</h2>
                 <p className="mb-3 text-xs text-slate-400">by player_name</p>
@@ -479,60 +559,120 @@ export default function PlayersPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                <h2 className="text-sm font-semibold text-white">
-                  Total Runs and Career Batting SR
-                </h2>
-                <p className="mb-3 text-xs text-slate-400">by player_name</p>
-                <div className="h-40 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={runsAndSrData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                      <XAxis
-                        dataKey="player_name"
-                        stroke="#94a3b8"
-                        fontSize={10}
-                        interval={0}
-                        angle={-15}
-                        textAnchor="end"
-                        height={45}
-                      />
-                      <YAxis yAxisId="left" stroke="#94a3b8" fontSize={11} />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        stroke="#10b981"
-                        fontSize={11}
-                        domain={[100, 170]}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#0f172a",
-                          borderColor: "#334155",
-                          borderRadius: 8,
-                        }}
-                      />
-                      <Legend />
-                      <Bar
-                        yAxisId="left"
-                        dataKey="total_runs"
-                        name="Total Runs"
-                        fill="#0284c7"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="strike_rate"
-                        name="Career Batting SR"
-                        stroke="#10b981"
-                        strokeWidth={2.5}
-                        dot={{ r: 3 }}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+              {/* Bottom-Right Card: Total Runs & Batting SR OR Best Bowling Strike Rate */}
+              {tab === "bowlers" ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                  <h2 className="text-sm font-semibold text-white">
+                    Best Bowling Strike Rate
+                  </h2>
+                  <p className="mb-3 text-xs text-slate-400">
+                    Lowest balls per wicket among top wicket-takers
+                  </p>
+                  <div className="h-40 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={bestBowlingSrData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis
+                          dataKey="player_name"
+                          stroke="#94a3b8"
+                          fontSize={10}
+                          interval={0}
+                          angle={-15}
+                          textAnchor="end"
+                          height={45}
+                        />
+                        <YAxis yAxisId="left" stroke="#94a3b8" fontSize={11} />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          stroke="#10b981"
+                          fontSize={11}
+                          domain={["dataMin - 1", "dataMax + 1"]}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#0f172a",
+                            borderColor: "#334155",
+                            borderRadius: 8,
+                          }}
+                        />
+                        <Legend />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="total_wickets"
+                          name="Total Wickets"
+                          fill="#0284c7"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="bowling_strike_rate"
+                          name="Bowling SR"
+                          stroke="#10b981"
+                          strokeWidth={2.5}
+                          dot={{ r: 3 }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                  <h2 className="text-sm font-semibold text-white">
+                    Total Runs and Career Batting SR
+                  </h2>
+                  <p className="mb-3 text-xs text-slate-400">by player_name</p>
+                  <div className="h-40 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={runsAndSrData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis
+                          dataKey="player_name"
+                          stroke="#94a3b8"
+                          fontSize={10}
+                          interval={0}
+                          angle={-15}
+                          textAnchor="end"
+                          height={45}
+                        />
+                        <YAxis yAxisId="left" stroke="#94a3b8" fontSize={11} />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          stroke="#10b981"
+                          fontSize={11}
+                          domain={[100, 170]}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#0f172a",
+                            borderColor: "#334155",
+                            borderRadius: 8,
+                          }}
+                        />
+                        <Legend />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="total_runs"
+                          name="Total Runs"
+                          fill="#0284c7"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="strike_rate"
+                          name="Career Batting SR"
+                          stroke="#10b981"
+                          strokeWidth={2.5}
+                          dot={{ r: 3 }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
